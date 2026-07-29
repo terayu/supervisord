@@ -16,6 +16,7 @@ password={SHA}82ab876d1387bfafe46cc1c8a2ef074eae50cb1d
 port=127.0.0.1:9001
 username=test1
 password=thepassword
+#allow_no_auth=false ; allow listening on a non-loopback address without username/password
 
 [supervisord]
 logfile=%(here)s/supervisord.log

@@ -2,8 +2,8 @@ package main
 
 import (
 	"crypto/sha1" //nolint:gosec
+	"crypto/subtle"
 	"encoding/hex"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -40,6 +40,10 @@ func newHTTPBasicAuth(user string, password string, handler http.Handler) *httpB
 	return &httpBasicAuth{user: user, password: password, handler: handler}
 }
 
+func secureCompare(a string, b string) bool {
+	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
 func (h *httpBasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.user == "" || h.password == "" {
 		log.Debug("no auth required")
@@ -47,20 +51,26 @@ func (h *httpBasicAuth) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username, password, ok := r.BasicAuth()
-	if ok && username == h.user {
+	if ok {
+		// evaluate both the user name and the password unconditionally so that
+		// the response time does not reveal which of them was wrong
+		userOK := secureCompare(username, h.user)
+		passOK := false
 		if strings.HasPrefix(h.password, "{SHA}") {
-			log.Debug("auth with SHA")
-			hash := sha1.New() //nolint:gosec
-			io.WriteString(hash, password)
-			if hex.EncodeToString(hash.Sum(nil)) == h.password[5:] {
-				h.handler.ServeHTTP(w, r)
-				return
-			}
-		} else if password == h.password {
-			log.Debug("Auth with normal password")
+			sum := sha1.Sum([]byte(password)) //nolint:gosec // kept for compatibility with supervisor
+			passOK = secureCompare(hex.EncodeToString(sum[:]), h.password[5:])
+		} else {
+			passOK = secureCompare(password, h.password)
+		}
+		if userOK && passOK {
 			h.handler.ServeHTTP(w, r)
 			return
 		}
+	}
+	if ok {
+		// a request without any credential is the normal first half of the basic auth
+		// handshake, only a wrong credential is worth warning about
+		log.WithFields(log.Fields{"remote": r.RemoteAddr, "user": username}).Warn("authentication failed")
 	}
 	w.Header().Set("WWW-Authenticate", "Basic realm=\"supervisor\"")
 	w.WriteHeader(401)
@@ -89,13 +99,52 @@ func (p *XMLRPC) StartUnixHTTPServer(user string, password string, listenAddr st
 
 // StartInetHTTPServer start http server on tcp with path listenAddr. If both user and password are not empty, the user
 // must provide user and password for basic authentication when making an XML RPC request.
-func (p *XMLRPC) StartInetHTTPServer(user string, password string, listenAddr string, s *Supervisor, startedCb func()) {
+//
+// When no credential is configured, the server refuses to listen on a non-loopback address unless
+// allowNoAuth is explicitly set in the configuration.
+func (p *XMLRPC) StartInetHTTPServer(user string, password string, listenAddr string, allowNoAuth bool, s *Supervisor, startedCb func()) {
+	if user == "" || password == "" {
+		if isLoopbackListenAddr(listenAddr) {
+			log.WithFields(log.Fields{"addr": listenAddr}).Warn("no username/password is configured, the HTTP interface is not protected")
+		} else if allowNoAuth {
+			log.WithFields(log.Fields{"addr": listenAddr}).Warn("no username/password is configured on a non-loopback address, but allow_no_auth is set; anyone who can reach this address can control supervisord")
+		} else {
+			log.WithFields(log.Fields{"addr": listenAddr}).Error("refuse to listen on a non-loopback address without username/password; set username/password, bind to 127.0.0.1, or set allow_no_auth=true")
+			startedCb()
+			return
+		}
+	}
 	p.startHTTPServer(user, password, "tcp", listenAddr, s, startedCb)
 }
 
 func (p *XMLRPC) isHTTPServerStartedOnProtocol(protocol string) bool {
 	_, ok := p.listeners[protocol]
 	return ok
+}
+
+// isLoopbackListenAddr reports whether listenAddr binds to a loopback interface only.
+// Unresolvable or non-IP hosts are treated as non-loopback (fail closed).
+func isLoopbackListenAddr(listenAddr string) bool {
+	host, _, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		// not a "host:port" form; cannot prove it is loopback
+		return false
+	}
+	switch host {
+	case "":
+		// ":9001" means all interfaces
+		return false
+	case "*":
+		return false
+	case "localhost":
+		return true
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// a hostname other than "localhost"; do not resolve at startup, fail closed
+		return false
+	}
+	return ip.IsLoopback()
 }
 
 func readFile(path string) ([]byte, error) {
@@ -173,7 +222,7 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 	// 读log.html文件
 	mux.HandleFunc("/log", readLogHtml)
 
-	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("/metrics", newHTTPBasicAuth(user, password, promhttp.Handler()))
 
 	// 注册日志路由,可以查看日志目录
 	entryList := s.config.GetPrograms()
@@ -188,11 +237,22 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 			continue
 		}
 		dir := filepath.Dir(filePath)
-		mux.Handle("/log/"+realName+"/", http.StripPrefix("/log/"+realName+"/", http.FileServer(http.Dir(dir))))
+		prefix := "/log/" + realName + "/"
+		mux.Handle(prefix, newHTTPBasicAuth(user, password,
+			http.StripPrefix(prefix, http.FileServer(http.Dir(dir)))))
 	}
 
 	listener, err := net.Listen(protocol, listenAddr)
 	if err == nil {
+		if protocol == "unix" {
+			// restrict the socket to its owner; without this any local user can control supervisord
+			if chmodErr := os.Chmod(listenAddr, 0700); chmodErr != nil {
+				listener.Close()
+				startedCb()
+				log.WithFields(log.Fields{"addr": listenAddr, "error": chmodErr}).Error("fail to restrict permission of the unix socket, refuse to serve on it")
+				return
+			}
+		}
 		log.WithFields(log.Fields{"addr": listenAddr, "protocol": protocol}).Info("success to listen on address")
 		p.listeners[protocol] = listener
 		startedCb()

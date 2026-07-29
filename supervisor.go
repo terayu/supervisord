@@ -521,6 +521,7 @@ func (s *Supervisor) startHTTPServer() {
 			go s.xmlRPC.StartInetHTTPServer(httpServerConfig.GetString("username", ""),
 				httpServerConfig.GetString("password", ""),
 				addr,
+				httpServerConfig.GetBool("allow_no_auth", false),
 				s,
 				func() {
 					cond.L.Lock()
