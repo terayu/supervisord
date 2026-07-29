@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
+	"mime"
 	"net/http"
+	"net/url"
 
 	"github.com/gorilla/mux"
 	"github.com/ochinchina/supervisord/types"
@@ -28,14 +30,14 @@ func (sr *SupervisorRestful) CreateProgramHandler() http.Handler {
 	sr.router.HandleFunc("/program/log/{name}/stdout", sr.ReadStdoutLog).Methods("GET")
 	sr.router.HandleFunc("/program/startPrograms", sr.StartPrograms).Methods("POST", "PUT")
 	sr.router.HandleFunc("/program/stopPrograms", sr.StopPrograms).Methods("POST", "PUT")
-	return sr.router
+	return csrfGuard(sr.router)
 }
 
 // CreateSupervisorHandler create http rest interface to control supervisor itself
 func (sr *SupervisorRestful) CreateSupervisorHandler() http.Handler {
 	sr.router.HandleFunc("/supervisor/shutdown", sr.Shutdown).Methods("PUT", "POST")
 	sr.router.HandleFunc("/supervisor/reload", sr.Reload).Methods("PUT", "POST")
-	return sr.router
+	return csrfGuard(sr.router)
 }
 
 // ListProgram list the status of all the programs
@@ -154,4 +156,41 @@ func (sr *SupervisorRestful) Reload(w http.ResponseWriter, req *http.Request) {
 	sr.supervisor.Reload(false)
 	r := map[string]bool{"success": reply.Ret}
 	json.NewEncoder(w).Encode(&r)
+}
+
+// csrfGuard rejects state-changing requests that look like they were triggered from
+// another origin. It complements HTTP basic auth, which browsers replay automatically.
+func csrfGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// a cross-origin request made by a script always carries an Origin header
+		if origin := r.Header.Get("Origin"); origin != "" {
+			u, err := url.Parse(origin)
+			if err != nil || u.Host != r.Host {
+				http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+				return
+			}
+		}
+
+		// HTML forms can only send these three content types, so rejecting them
+		// blocks form-based CSRF even when no Origin header is present
+		if ct := r.Header.Get("Content-Type"); ct != "" {
+			mediaType, _, err := mime.ParseMediaType(ct)
+			if err != nil {
+				http.Error(w, "invalid Content-Type", http.StatusUnsupportedMediaType)
+				return
+			}
+			switch mediaType {
+			case "application/x-www-form-urlencoded", "multipart/form-data", "text/plain":
+				http.Error(w, "unsupported Content-Type, use application/json", http.StatusUnsupportedMediaType)
+				return
+			}
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
