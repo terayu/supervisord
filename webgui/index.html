@@ -52,6 +52,7 @@
     function startProgram( name ) {
         $.ajax( {
             type: "POST",
+            contentType: "application/json",
             dataType: "json",
             url: "/program/start/" + name,
             success: function( data, status, jqXHR  ) {
@@ -107,6 +108,7 @@
             (resolve, reject) =>{
                 $.ajax( {
                     type: "POST",
+                    contentType: "application/json",
                     dataType: "json",
                     url: "/program/stop/" + name,
                     success: function( data, status, jqXHR  ) {
@@ -142,28 +144,36 @@
 
     }
 
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+        });
+    }
+
     function reformatPrograms( programs ) {
         for( var i in programs ) {
             var statename = programs[i]['statename'];
+            var name = escapeHtml(programs[i]['name']);
             var action = "";
             var color = "";
-            if( statename.toLowerCase().indexOf("running") >= 0 || statename.toLowerCase().indexOf( "starting") >= 0 ) {
-                action = '<button type="button" disabled class="btn btn-primary mr-1" onclick="startProgram(\'' + programs[i]['name'] + '\');">Start</button>';
-                action = action + '<button type="button" class="btn btn-primary mr-1" onclick="stopProgram(\'' + programs[i]['name'] + '\');">Stop</button>';
-                action = action + '<button type="button" class="btn btn-primary mr-1" onclick="restartProgram(\'' + programs[i]['name'] + '\');">ReStart</button>';
+            var running = statename.toLowerCase().indexOf("running") >= 0 || statename.toLowerCase().indexOf("starting") >= 0;
+
+            if( running ) {
+                action = '<button type="button" disabled class="btn btn-primary mr-1 js-start" data-name="' + name + '">Start</button>';
+                action = action + '<button type="button" class="btn btn-primary mr-1 js-stop" data-name="' + name + '">Stop</button>';
+                action = action + '<button type="button" class="btn btn-primary mr-1 js-restart" data-name="' + name + '">ReStart</button>';
                 color = "green";
             } else {
-                action = '<button type="button" class="btn btn-primary mr-1" onclick="startProgram(\'' + programs[i]['name'] + '\');">Start</button>';
-                action = action + '<button type="button" disabled class="btn btn-primary mr-1" onclick="stopProgram(\'' + programs[i]['name'] + '\');">Stop</button>';
-                action = action + '<button type="button" disabled class="btn btn-primary mr-1" onclick="restartProgram(\'' + programs[i]['name'] + '\');">ReStart</button>';
+                action = '<button type="button" class="btn btn-primary mr-1 js-start" data-name="' + name + '">Start</button>';
+                action = action + '<button type="button" disabled class="btn btn-primary mr-1 js-stop" data-name="' + name + '">Stop</button>';
+                action = action + '<button type="button" disabled class="btn btn-primary mr-1 js-restart" data-name="' + name + '">ReStart</button>';
                 color = "red";
             }
-            let logLabel = '<a href=/log?name=' + programs[i]['name'] + '>日志列表 </a>';
 
-            action = action + logLabel;
+            action = action + '<a href="/log?name=' + encodeURIComponent(programs[i]['name']) + '">日志列表 </a>';
 
             programs[i]['action'] = action;
-            programs[i]['statename'] = '<div style="background-color:' + color + ';">' + statename + '</div>';
+            programs[i]['statename'] = '<div style="background-color:' + color + ';">' + escapeHtml(statename) + '</div>';
         }
     };
 
@@ -296,6 +306,15 @@
     }
 
     $(document).ready(function() {
+        $(document).on('click', '.js-start:not([disabled])', function() {
+            startProgram($(this).attr('data-name'));
+        });
+        $(document).on('click', '.js-stop:not([disabled])', function() {
+            stopProgram($(this).attr('data-name'));
+        });
+        $(document).on('click', '.js-restart:not([disabled])', function() {
+            restartProgram($(this).attr('data-name'));
+        });
         list_programs();
     });
 </script>

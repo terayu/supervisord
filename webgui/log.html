@@ -17,36 +17,51 @@
 
 <script>
     $(document).ready(function () {
-        let name = getUrlVars()["name"];
-        console.log(name)
+        var name = getUrlVars()["name"];
         getLogDir(name);
     });
 
     function getLogDir(name) {
-        if (name === undefined || name.length === 0){
-            $("#app").html("need url variable name")
-            return
+        if (name === undefined || name.length === 0) {
+            $("#app").text("need url variable name");
+            return;
+        }
+        // only allow a plain program name; anything else could redirect the request
+        // to an unrelated same-origin endpoint
+        if (!/^[A-Za-z0-9_.:-]+$/.test(name)) {
+            $("#app").text("invalid program name");
+            return;
         }
 
-        axios.get("/log/" + name).then(function (response) {
-            console.log(response.data)
-            $("#app").html(response.data)
+        var base = "/log/" + encodeURIComponent(name) + "/";
+        axios.get(base).then(function (response) {
+            // DOMParser produces an inert document: scripts do not run and
+            // resources (and therefore onerror handlers) are not loaded
+            var doc = new DOMParser().parseFromString(response.data, "text/html");
+            var list = document.createElement("ul");
+            var anchors = doc.querySelectorAll("a");
 
-            $("a").each(function(){
-                $old_url = $(this).attr('href');
-                $new_url = '/log/' + name +"/" +$old_url;
-                $(this).attr('href',$new_url);//changed this line
-                console.log($new_url)
-            });
+            for (var i = 0; i < anchors.length; i++) {
+                var href = anchors[i].getAttribute("href") || "";
+                // the directory listing only ever links to a single path segment
+                if (!/^[^/?#]+\/?$/.test(href)) {
+                    continue;
+                }
+                var li = document.createElement("li");
+                var link = document.createElement("a");
+                link.setAttribute("href", base + href);
+                link.className = "text-success font-weight-bold";
+                link.style.fontSize = "20px";
+                link.style.lineHeight = "30px";
+                link.textContent = anchors[i].textContent;
+                li.appendChild(link);
+                list.appendChild(li);
+            }
 
-            $("a").addClass("text-success")
-            $("a").addClass("font-weight-bold")
-            $("a").css("font-size","20px")
-            $("a").css("line-height","30px")
-        }).catch(function (err){
-           alert("ERROR:此程序未配置日志，如需配置参考stdout_logfile")
-        })
-
+            $("#app").empty().append(list);
+        }).catch(function (err) {
+            $("#app").text("ERROR:此程序未配置日志，如需配置参考stdout_logfile");
+        });
     }
 
 
