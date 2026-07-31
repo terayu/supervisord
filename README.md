@@ -435,10 +435,20 @@ Also removed: the config editor (`28d9c26`) and `login.html`, an unmodified
 Bootstrap sign-in example that nothing linked to and that could not have
 authenticated anything (`4c928a3`).
 
+## Build
+
+- `Dockerfile` could not build at all: `CGO_ENABLED=0` disables the external
+  linker that its own `-linkmode external` asks for, so it failed with
+  `-linkmode requires external (cgo) linking, but cgo is not enabled`. The
+  ldflags were also unnecessary — `CGO_ENABLED=0` already yields a static
+  binary. Both Dockerfiles were additionally missing `-tags release`, so even a
+  successful build produced an image whose GUI answered 404.
+- `Taskfile.yml` for local builds (`461707c`).
+
 ## Housekeeping
 
-`Taskfile.yml` for local builds (`461707c`); the remaining Chinese comments and
-GUI strings translated to English (`a3f206f`).
+The remaining Chinese comments and GUI strings translated to English
+(`a3f206f`).
 
 # Usage from a Docker container
 
@@ -453,10 +463,31 @@ CMD ["/usr/local/bin/supervisord"]
 Note that `ochinchina/supervisord:latest` is upstream's image and carries none of
 the changes listed under [Differences from upstream](#differences-from-upstream).
 
-The `Dockerfile` and `Dockerfile.github` in this repo build **without**
-`-tags release`, so the image they produce serves the web GUI from `./webgui`
-relative to the working directory and returns 404 for it. Add the tag if you
-build your own image and want the GUI.
+To build your own from this repo:
+
+```shell
+docker build -t supervisord:local .
+```
+
+Inside a container you will want to bind the HTTP interface to `0.0.0.0` so it
+is reachable through the published port — and a non-loopback bind **requires a
+username and password**. Without them supervisord logs `refuse to listen on a
+non-loopback address without username/password` and serves nothing, while the
+container itself stays up:
+
+```ini
+[inet_http_server]
+port=0.0.0.0:9001
+username=admin
+password=secret
+```
+
+```shell
+docker run -d -p 9001:9001 -v /path/to/conf:/cfg supervisord:local -c /cfg/supervisord.conf
+```
+
+The resulting image is a `scratch` image holding one static binary, about
+17 MB, with the web GUI embedded in it.
 
 # Integrate with Prometheus
 
