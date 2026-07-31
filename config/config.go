@@ -539,6 +539,8 @@ func (c *Entry) GetBytes(key string, defValue int) int {
 
 func (c *Entry) parse(section *ini.Section) {
 	c.Name = section.Name
+	// reset the key-value map so keys removed from the section on reload are dropped
+	c.keyValues = make(map[string]string)
 	for _, key := range section.Keys() {
 		c.keyValues[key.Name()] = strings.TrimSpace(key.ValueWithDefault(""))
 	}

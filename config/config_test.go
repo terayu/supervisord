@@ -209,3 +209,60 @@ func TestDefaultParams(t *testing.T) {
 	}
 
 }
+
+// TestReloadDropsRemovedKey verifies that a key removed from the config file
+// is no longer present on the Entry after the file is reloaded.
+func TestReloadDropsRemovedKey(t *testing.T) {
+	fileName, err := createTmpFile()
+	if err != nil {
+		t.Fatal("fail to create the temporary file")
+	}
+	defer os.Remove(fileName)
+
+	ioutil.WriteFile(fileName, []byte("[program:demo]\ncommand=/bin/sleep 1\nuser=root\nstopsignal=KILL\n"), os.ModePerm)
+	config := NewConfig(fileName)
+	config.Load()
+
+	// the operator removes user= and stopsignal= and reloads
+	ioutil.WriteFile(fileName, []byte("[program:demo]\ncommand=/bin/sleep 1\n"), os.ModePerm)
+	config.Load()
+	entry := config.GetProgram("demo")
+
+	if got := entry.GetString("user", "<unset>"); got != "<unset>" {
+		t.Errorf("user survived the reload: %q", got)
+	}
+	if got := entry.GetString("stopsignal", "<unset>"); got != "<unset>" {
+		t.Errorf("stopsignal survived the reload: %q", got)
+	}
+}
+
+// TestReloadKeepsInjectedNumprocsKeys verifies that the keys injected by
+// parseProgram (command, process_name, numprocs_start, process_num) survive
+// the keyValues reset applied to fix TestReloadDropsRemovedKey.
+func TestReloadKeepsInjectedNumprocsKeys(t *testing.T) {
+	s := "[program:test]\nnumprocs=3\nprocess_name=%(program_name)s_%(process_num)d\ncommand=/bin/sleep 1\n"
+	config, err := parse([]byte(s))
+	if err != nil {
+		t.Fatal("fail to parse the numprocs config")
+	}
+
+	for i := 1; i <= 3; i++ {
+		procName := fmt.Sprintf("test_%d", i)
+		entry := config.GetProgram(procName)
+		if entry == nil {
+			t.Fatalf("fail to find the program entry %s", procName)
+		}
+		if entry.GetString("command", "") != "/bin/sleep 1" {
+			t.Errorf("%s: command missing, got %q", procName, entry.GetString("command", ""))
+		}
+		if entry.GetString("process_name", "") != procName {
+			t.Errorf("%s: process_name mismatch, got %q", procName, entry.GetString("process_name", ""))
+		}
+		if entry.GetString("numprocs_start", "") != fmt.Sprintf("%d", i-1) {
+			t.Errorf("%s: numprocs_start mismatch, got %q", procName, entry.GetString("numprocs_start", ""))
+		}
+		if entry.GetString("process_num", "") != fmt.Sprintf("%d", i) {
+			t.Errorf("%s: process_num mismatch, got %q", procName, entry.GetString("process_num", ""))
+		}
+	}
+}
