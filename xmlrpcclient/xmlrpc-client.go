@@ -281,10 +281,22 @@ func (r *XMLRPCClient) ReloadConfig() (reply types.ReloadConfigResult, err error
 			reply.RemovedGroup = append(reply.RemovedGroup, value)
 		}
 	})
+	// on a fault response, capture the fault code/string so the caller
+	// learns why the reload failed instead of getting a silent success
+	var fault xml.Fault
+	xmlProcMgr.AddLeafProcessor("methodResponse/fault/value/struct/member/value/int", func(value string) {
+		fmt.Sscanf(value, "%d", &fault.Code)
+	})
+	xmlProcMgr.AddLeafProcessor("methodResponse/fault/value/struct/member/value/string", func(value string) {
+		fault.String = value
+	})
 	r.post("supervisor.reloadConfig", &ins, func(body io.ReadCloser, procError error) {
 		err = procError
 		if err == nil {
 			xmlProcMgr.ProcessXML(body)
+			if fault.String != "" {
+				err = fault
+			}
 		}
 	})
 	return
