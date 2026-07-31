@@ -4,7 +4,6 @@ import (
 	"crypto/sha1" //nolint:gosec
 	"crypto/subtle"
 	"encoding/hex"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -147,30 +146,6 @@ func isLoopbackListenAddr(listenAddr string) bool {
 	return ip.IsLoopback()
 }
 
-func readFile(path string) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	b, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return b, nil
-}
-
-func getProgramConfigPath(programName string, s *Supervisor) string {
-	c := s.config.GetProgram(programName)
-	if c == nil {
-		return ""
-	}
-
-	res := c.GetString("conf_file", "")
-	return res
-}
-
 // serveWebguiFile serves a file of the web GUI. It goes through HTTP instead of the
 // local filesystem so that a release build sends its embedded copy; reading the file
 // by relative path only worked when supervisord was started from the directory that
@@ -217,13 +192,6 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 
 	webguiHandler := NewSupervisorWebgui(s).CreateHandler()
 	mux.Handle("/", newHTTPBasicAuth(user, password, webguiHandler))
-
-	// conf file
-	confHandler := NewConfApi(s).CreateHandler()
-	mux.Handle("/conf/", newHTTPBasicAuth(user, password, confHandler))
-	mux.Handle("/confFile", newHTTPBasicAuth(user, password, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		serveWebguiFile(writer, request, "conf.html")
-	})))
 
 	// read the log.html file
 	mux.Handle("/log", newHTTPBasicAuth(user, password, http.HandlerFunc(readLogHtml)))
