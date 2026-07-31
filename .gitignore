@@ -10,3 +10,4 @@ supervisord_linux_amd64
 upx
 dist
 .DS_Store
+docs/
