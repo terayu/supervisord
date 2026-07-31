@@ -171,15 +171,28 @@ func getProgramConfigPath(programName string, s *Supervisor) string {
 	return res
 }
 
-func readLogHtml(writer http.ResponseWriter, request *http.Request) {
-	b, err := readFile("webgui/log.html")
+// serveWebguiFile serves a file of the web GUI. It goes through HTTP instead of the
+// local filesystem so that a release build sends its embedded copy; reading the file
+// by relative path only worked when supervisord was started from the directory that
+// contains webgui.
+func serveWebguiFile(writer http.ResponseWriter, request *http.Request, name string) {
+	f, err := HTTP.Open(name)
 	if err != nil {
 		writer.WriteHeader(http.StatusNotFound)
 		return
 	}
+	defer f.Close()
 
-	writer.WriteHeader(http.StatusOK)
-	writer.Write(b)
+	info, err := f.Stat()
+	if err != nil {
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+	http.ServeContent(writer, request, info.Name(), info.ModTime(), f)
+}
+
+func readLogHtml(writer http.ResponseWriter, request *http.Request) {
+	serveWebguiFile(writer, request, "log.html")
 }
 
 func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, listenAddr string, s *Supervisor, startedCb func()) {
@@ -208,19 +221,12 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 	// conf 文件
 	confHandler := NewConfApi(s).CreateHandler()
 	mux.Handle("/conf/", newHTTPBasicAuth(user, password, confHandler))
-	mux.HandleFunc("/confFile", func(writer http.ResponseWriter, request *http.Request) {
-		b, err := readFile("webgui/conf.html")
-		if err != nil {
-			writer.WriteHeader(http.StatusNotFound)
-			return
-		}
-
-		writer.WriteHeader(http.StatusOK)
-		writer.Write(b)
-	})
+	mux.Handle("/confFile", newHTTPBasicAuth(user, password, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		serveWebguiFile(writer, request, "conf.html")
+	})))
 
 	// 读log.html文件
-	mux.HandleFunc("/log", readLogHtml)
+	mux.Handle("/log", newHTTPBasicAuth(user, password, http.HandlerFunc(readLogHtml)))
 
 	mux.Handle("/metrics", newHTTPBasicAuth(user, password, promhttp.Handler()))
 
