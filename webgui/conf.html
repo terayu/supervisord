@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>ConfFile</title>
-    <!--导入js库-->
+    <!--import the js libraries-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ace.js" type="text/javascript"
             charset="utf-8"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.6/ext-language_tools.js" type="text/javascript"
@@ -17,7 +17,7 @@
 </head>
 
 <body>
-<!--代码输入框（注意请务必设置高度，否则无法显示）-->
+<!--code input box (be sure to set a height, otherwise it is not displayed)-->
 <pre id="code" class="ace_editor" style="min-height:600px">
  <textarea id="text_conf" class="ace_text-input">
 </textarea>
@@ -26,22 +26,22 @@
     Save
 </button>
 <script>
-    //初始化对象
+    //initialize the object
     editor = ace.edit("code");
 
-    //设置风格和语言（更多风格和语言，请到github上相应目录查看）
+    //set the theme and the language (for more themes and languages, see the corresponding directories on github)
     theme = "crimson_editor"
     language = "java"
     editor.setTheme("ace/theme/" + theme);
     editor.session.setMode("ace/mode/" + language);
 
-    //字体大小
+    //font size
     editor.setFontSize(18);
 
-    //设置只读（true时只读，用于展示代码）
+    //set read only (true means read only, for displaying code)
     editor.setReadOnly(false);
 
-    //自动换行,设置为off关闭
+    //word wrap, set to off to disable
     editor.setOption("wrap", "free")
 
     $(document).ready(function () {
@@ -59,7 +59,7 @@
             console.log(response.data)
             editor.setValue(response.data)
         }).catch(function (err){
-            alert("ERROR:此程序未配置conf文件，如需配置参考conf_file")
+            alert("ERROR: no conf file is configured for this program, see conf_file to configure one")
         })
 
     }

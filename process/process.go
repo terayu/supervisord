@@ -535,13 +535,13 @@ func (p *Process) monitorProgramIsRunning(endTime time.Time, monitorExited *int3
 	}
 }
 
-// 这个函数可能有以下几种执行完成的情况：
+// This function can complete in any of the following ways:
 //
-// 1. 程序正在运行中，因此函数直接返回。
-// 2. 程序尚未运行，函数开始尝试多次启动程序，直到启动成功。
-// 3. 程序成功启动并正在运行中，函数启动了一个后台监视程序来监视程序运行情况，并向 `finishCb` 函数传递一个标记告知程序已停止，函数直接返回。
-// 4. 程序启动失败，超出了尝试次数，函数将程序状态标记为 `FATAL`，并向 `finishCb` 函数传递一个标记告知程序已停止，函数直接返回。
-// 5. 程序被终止或运行失败，超出了重试次数，函数将程序状态标记为 `EXITED`，并向 `finishCb` 函数传递一个标记告知程序已停止，函数直接返回。
+// 1. The program is already running, so the function returns immediately.
+// 2. The program is not running yet, so the function keeps trying to start it until it succeeds.
+// 3. The program started successfully and is running, so the function starts a background monitor to watch it, passes a flag to `finishCb` to report that the program has stopped, and returns.
+// 4. The program failed to start and the number of attempts was exceeded, so the function marks the program as `FATAL`, passes a flag to `finishCb` to report that the program has stopped, and returns.
+// 5. The program was killed or failed while running and the number of retries was exceeded, so the function marks the program as `EXITED`, passes a flag to `finishCb` to report that the program has stopped, and returns.
 func (p *Process) run(finishCb func()) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -777,12 +777,12 @@ func (p *Process) setEnv() {
 	}
 }
 
-// 辅助函数：带覆盖的环境变量追加
+// helper: append environment variables, with override
 func mergeKeyValueArrays(arr1, arr2 []string) []string {
 	keySet := make(map[string]bool)
 	result := make([]string, 0, len(arr1)+len(arr2))
 
-	// 处理第一个数组，保留所有元素
+	// process the first array, keeping every element
 	for _, item := range arr1 {
 		if key := strings.SplitN(item, "=", 2)[0]; key != "" {
 			keySet[key] = true
@@ -790,7 +790,7 @@ func mergeKeyValueArrays(arr1, arr2 []string) []string {
 		result = append(result, item)
 	}
 
-	// 处理第二个数组，跳过已存在的键
+	// process the second array, skipping the keys that already exist
 	for _, item := range arr2 {
 		if key := strings.SplitN(item, "=", 2)[0]; key != "" {
 			if !keySet[key] {
@@ -984,26 +984,26 @@ func (p *Process) setUser() error {
 	}
 	setUserID(p.cmd.SysProcAttr, uint32(uid), uint32(gid))
 
-	// 强制设置关键环境变量
+	// force the critical environment variables
 	p.cmd.Env = appendEnvWithOverride(p.cmd.Env,
-		"HOME", u.HomeDir, // 强制HOME目录
-		"USER", u.Username, // 用户名
-		"LOGNAME", u.Username, // 登录名
-		"PATH", defaultPath(u), // 安全PATH
+		"HOME", u.HomeDir, // force the HOME directory
+		"USER", u.Username, // user name
+		"LOGNAME", u.Username, // login name
+		"PATH", defaultPath(u), // safe PATH
 	)
 
-	// 删除root残留的环境变量
+	// remove the environment variables left over from root
 	filterRootEnv(&p.cmd.Env)
 
 	return nil
 }
 
-// 辅助函数：带覆盖的环境变量追加
+// helper: append environment variables, with override
 func appendEnvWithOverride(env []string, pairs ...string) []string {
 	newEnv := make([]string, 0, len(env)+len(pairs)/2)
 	set := make(map[string]bool)
 
-	// 先添加新变量
+	// add the new variables first
 	for i := 0; i < len(pairs); i += 2 {
 		key := pairs[i]
 		value := pairs[i+1]
@@ -1011,7 +1011,7 @@ func appendEnvWithOverride(env []string, pairs ...string) []string {
 		set[key] = true
 	}
 
-	// 保留未覆盖的旧变量
+	// keep the old variables that were not overridden
 	for _, e := range env {
 		parts := strings.SplitN(e, "=", 2)
 		if len(parts) < 2 || set[parts[0]] {
@@ -1023,16 +1023,16 @@ func appendEnvWithOverride(env []string, pairs ...string) []string {
 	return newEnv
 }
 
-// 辅助函数：生成安全PATH
+// helper: build a safe PATH
 func defaultPath(u *user.User) string {
-	// 根据用户类型返回不同PATH
+	// return a different PATH depending on the kind of user
 	if u.Uid == "0" {
 		return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 	}
 	return "/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games"
 }
 
-// 辅助函数：过滤危险的环境变量
+// helper: filter out the dangerous environment variables
 func filterRootEnv(env *[]string) {
 	filtered := make([]string, 0, len(*env))
 	for _, e := range *env {

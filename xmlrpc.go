@@ -211,26 +211,26 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 	supervisorRestHandler := NewSupervisorRestful(s).CreateSupervisorHandler()
 	mux.Handle("/supervisor/", newHTTPBasicAuth(user, password, supervisorRestHandler))
 
-	// 有bug已弃用
+	// deprecated, it is buggy
 	logtailHandler := NewLogtail(s).CreateHandler()
 	mux.Handle("/logtail/", newHTTPBasicAuth(user, password, logtailHandler))
 
 	webguiHandler := NewSupervisorWebgui(s).CreateHandler()
 	mux.Handle("/", newHTTPBasicAuth(user, password, webguiHandler))
 
-	// conf 文件
+	// conf file
 	confHandler := NewConfApi(s).CreateHandler()
 	mux.Handle("/conf/", newHTTPBasicAuth(user, password, confHandler))
 	mux.Handle("/confFile", newHTTPBasicAuth(user, password, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		serveWebguiFile(writer, request, "conf.html")
 	})))
 
-	// 读log.html文件
+	// read the log.html file
 	mux.Handle("/log", newHTTPBasicAuth(user, password, http.HandlerFunc(readLogHtml)))
 
 	mux.Handle("/metrics", newHTTPBasicAuth(user, password, promhttp.Handler()))
 
-	// 注册日志路由,可以查看日志目录
+	// register the log routes so that the log directory can be browsed
 	entryList := s.config.GetPrograms()
 	for _, c := range entryList {
 		realName := c.GetProgramName()

@@ -60,7 +60,7 @@
 
             $("#app").empty().append(list);
         }).catch(function (err) {
-            $("#app").text("ERROR:此程序未配置日志，如需配置参考stdout_logfile");
+            $("#app").text("ERROR: no log is configured for this program, see stdout_logfile to configure one");
         });
     }
 
