@@ -1,0 +1,19 @@
+version: "3"
+vars:
+  BINARY: 'supervisord'
+  BINDIR: 'bin'
+  EXT: '.exe'
+
+tasks:
+  default:
+    cmds:
+      - task --list-all
+  build:
+    desc: "execute build"
+    cmds:
+      - 'go build -tags release -o {{.BINDIR}}/{{.BINARY}}{{.EXT}}'
+
+  buildvendor:
+    desc: "build using vendor directory"
+    cmds:
+      - 'go build -tags release -mod=vendor -o {{.BINDIR}}/{{.BINARY}}{{.EXT}}'

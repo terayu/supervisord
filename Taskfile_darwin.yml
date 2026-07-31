@@ -1,0 +1,29 @@
+version: "3"
+vars:
+  BINARY: 'supervisord'
+  BINDIR: 'bin'
+  EXT: ''
+
+tasks:
+  default:
+    cmds:
+     - task --list-all
+  build:
+    desc: "execute build"
+    cmds:
+      - 'go build -tags release -o {{.BINDIR}}/{{.BINARY}}{{.EXT}}'
+
+  buildvendor:
+    desc: "execute build using vendor directory"
+    cmds:
+      - 'go build -tags release -mod=vendor -o {{.BINDIR}}/{{.BINARY}}{{.EXT}}'
+
+  buildwin:
+    desc: "build for windows(AMD64)"
+    env:
+      GOOS: windows
+      GOARCH: amd64
+    vars:
+      EXT: '.exe'
+    cmds:
+      - 'go build -tags release -o {{.BINDIR}}/{{.BINARY}}{{.EXT}}'
