@@ -266,3 +266,26 @@ func TestReloadKeepsInjectedNumprocsKeys(t *testing.T) {
 		}
 	}
 }
+
+// TestLoadNonExistentFile verifies that Load() reports an error when the
+// main configuration file cannot be found, instead of silently succeeding.
+func TestLoadNonExistentFile(t *testing.T) {
+	config := NewConfig("/no/such/directory/supervisord.conf")
+	_, err := config.Load()
+	if err == nil {
+		t.Error("Load() on a nonexistent config file should return an error")
+	}
+}
+
+// TestLoadEmptyFileIsNotAnError verifies that a readable config file with no
+// program sections is a legitimate configuration (e.g. removing every
+// program) and must not be treated as a failure.
+func TestLoadEmptyFileIsNotAnError(t *testing.T) {
+	config, err := parse([]byte(""))
+	if err != nil {
+		t.Fatalf("Load() on an empty file should not return an error, got %v", err)
+	}
+	if len(config.GetPrograms()) != 0 {
+		t.Error("expected no programs from an empty configuration file")
+	}
+}

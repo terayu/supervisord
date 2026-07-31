@@ -446,15 +446,20 @@ func (s *Supervisor) Reload(restart bool) (addedGroup []string, changedGroup []s
 		os.Exit(1)
 
 	}
-	if err == nil {
-		s.setSupervisordInfo()
-		s.startEventListeners()
-		s.createPrograms(prevPrograms)
-		if restart {
-			s.startHTTPServer()
-		}
-		s.startAutoStartPrograms()
+	if err != nil {
+		// loading the new configuration failed: leave the running programs
+		// and the previously loaded configuration untouched.
+		log.Error("fail to reload configuration, keep the previous configuration: ", err)
+		return addedGroup, changedGroup, removedGroup, err
 	}
+	s.setSupervisordInfo()
+	s.startEventListeners()
+	s.createPrograms(prevPrograms)
+	if restart {
+		s.startHTTPServer()
+	}
+	s.startAutoStartPrograms()
+
 	removedPrograms := util.Sub(prevPrograms, loadedPrograms)
 	for _, removedProg := range removedPrograms {
 		log.WithFields(log.Fields{"program": removedProg}).Info("the program is removed and will be stopped")

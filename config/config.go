@@ -120,6 +120,14 @@ func (c *Config) createEntry(name string, configDir string) *Entry {
 //
 // Load the configuration and return loaded programs
 func (c *Config) Load() ([]string, error) {
+	// ini.LoadFile() has no way to report a failure (e.g. missing/unreadable
+	// file), so the main config file must be checked ourselves before
+	// touching any state, otherwise a bad reload would silently wipe out
+	// the previously loaded configuration.
+	if err := checkConfigFile(c.configFile); err != nil {
+		return nil, err
+	}
+
 	myini := ini.NewIni()
 	c.ProgramGroup = NewProcessGroup()
 	log.WithFields(log.Fields{"file": c.configFile}).Info("load configuration from file")
@@ -127,10 +135,36 @@ func (c *Config) Load() ([]string, error) {
 
 	includeFiles := c.getIncludeFiles(myini)
 	for _, f := range includeFiles {
+		if err := checkConfigFile(f); err != nil {
+			log.WithFields(log.Fields{"file": f}).Warn("skip unreadable include file: ", err)
+			continue
+		}
 		log.WithFields(log.Fields{"file": f}).Info("load configuration from file")
 		myini.LoadFile(f)
 	}
 	return c.parse(myini), nil
+}
+
+// checkConfigFile makes sure fileName names a regular file that can be
+// opened for reading. An empty, missing, unreadable or directory path is
+// reported as an error; the caller decides whether that is fatal.
+func checkConfigFile(fileName string) error {
+	if fileName == "" {
+		return fmt.Errorf("no configuration file specified")
+	}
+	f, err := os.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("fail to open configuration file %s: %v", fileName, err)
+	}
+	defer f.Close()
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("fail to stat configuration file %s: %v", fileName, err)
+	}
+	if fileInfo.IsDir() {
+		return fmt.Errorf("configuration file %s is a directory", fileName)
+	}
+	return nil
 }
 
 func (c *Config) getIncludeFiles(cfg *ini.Ini) []string {

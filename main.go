@@ -139,7 +139,8 @@ func runServer() {
 		s := NewSupervisor(options.Configuration)
 		initSignals(s)
 		if _, _, _, sErr := s.Reload(true); sErr != nil {
-			panic(sErr)
+			log.WithFields(log.Fields{"file": options.Configuration}).Error("fail to load configuration: ", sErr)
+			os.Exit(1)
 		}
 		s.WaitForExit()
 	}
