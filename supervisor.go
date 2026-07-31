@@ -651,8 +651,12 @@ func (s *Supervisor) ReadProcessStdoutLog(r *http.Request, args *ProcessLogReadI
 	if proc == nil {
 		return fmt.Errorf("No such process %s", args.Name)
 	}
+	stdoutLog := proc.GetStdoutLogger()
+	if stdoutLog == nil {
+		return fmt.Errorf("No stdout log available for process %s", args.Name)
+	}
 	var err error
-	reply.LogData, err = proc.StdoutLog.ReadLog(int64(args.Offset), int64(args.Length))
+	reply.LogData, err = stdoutLog.ReadLog(int64(args.Offset), int64(args.Length))
 	return err
 }
 
@@ -662,8 +666,12 @@ func (s *Supervisor) ReadProcessStderrLog(r *http.Request, args *ProcessLogReadI
 	if proc == nil {
 		return fmt.Errorf("No such process %s", args.Name)
 	}
+	stderrLog := proc.GetStderrLogger()
+	if stderrLog == nil {
+		return fmt.Errorf("No stderr log available for process %s", args.Name)
+	}
 	var err error
-	reply.LogData, err = proc.StderrLog.ReadLog(int64(args.Offset), int64(args.Length))
+	reply.LogData, err = stderrLog.ReadLog(int64(args.Offset), int64(args.Length))
 	return err
 }
 
@@ -673,8 +681,12 @@ func (s *Supervisor) TailProcessStdoutLog(r *http.Request, args *ProcessLogReadI
 	if proc == nil {
 		return fmt.Errorf("No such process %s", args.Name)
 	}
+	stdoutLog := proc.GetStdoutLogger()
+	if stdoutLog == nil {
+		return fmt.Errorf("No stdout log available for process %s", args.Name)
+	}
 	var err error
-	reply.LogData, reply.Offset, reply.Overflow, err = proc.StdoutLog.ReadTailLog(int64(args.Offset), int64(args.Length))
+	reply.LogData, reply.Offset, reply.Overflow, err = stdoutLog.ReadTailLog(int64(args.Offset), int64(args.Length))
 	return err
 }
 
@@ -684,8 +696,12 @@ func (s *Supervisor) TailProcessStderrLog(r *http.Request, args *ProcessLogReadI
 	if proc == nil {
 		return fmt.Errorf("No such process %s", args.Name)
 	}
+	stderrLog := proc.GetStderrLogger()
+	if stderrLog == nil {
+		return fmt.Errorf("No stderr log available for process %s", args.Name)
+	}
 	var err error
-	reply.LogData, reply.Offset, reply.Overflow, err = proc.StderrLog.ReadTailLog(int64(args.Offset), int64(args.Length))
+	reply.LogData, reply.Offset, reply.Overflow, err = stderrLog.ReadTailLog(int64(args.Offset), int64(args.Length))
 	return err
 }
 
@@ -695,8 +711,13 @@ func (s *Supervisor) ClearProcessLogs(r *http.Request, args *struct{ Name string
 	if proc == nil {
 		return fmt.Errorf("No such process %s", args.Name)
 	}
-	err1 := proc.StdoutLog.ClearAllLogFile()
-	err2 := proc.StderrLog.ClearAllLogFile()
+	stdoutLog := proc.GetStdoutLogger()
+	stderrLog := proc.GetStderrLogger()
+	if stdoutLog == nil || stderrLog == nil {
+		return fmt.Errorf("No log available for process %s", args.Name)
+	}
+	err1 := stdoutLog.ClearAllLogFile()
+	err2 := stderrLog.ClearAllLogFile()
 	reply.Success = err1 == nil && err2 == nil
 	if err1 != nil {
 		return err1
@@ -708,8 +729,13 @@ func (s *Supervisor) ClearProcessLogs(r *http.Request, args *struct{ Name string
 func (s *Supervisor) ClearAllProcessLogs(r *http.Request, args *struct{}, reply *struct{ RPCTaskResults []RPCTaskResult }) error {
 
 	s.procMgr.ForEachProcess(func(proc *process.Process) {
-		proc.StdoutLog.ClearAllLogFile()
-		proc.StderrLog.ClearAllLogFile()
+		stdoutLog := proc.GetStdoutLogger()
+		stderrLog := proc.GetStderrLogger()
+		if stdoutLog == nil || stderrLog == nil {
+			return
+		}
+		stdoutLog.ClearAllLogFile()
+		stderrLog.ClearAllLogFile()
 		procInfo := getProcessInfo(proc)
 		reply.RPCTaskResults = append(reply.RPCTaskResults, RPCTaskResult{
 			Name:        procInfo.Name,

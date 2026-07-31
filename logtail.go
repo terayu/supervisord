@@ -48,9 +48,9 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	var ok bool = false
 	var compositeLogger *logger.CompositeLogger = nil
 	if logType == "stdout" {
-		compositeLogger, ok = proc.StdoutLog.(*logger.CompositeLogger)
+		compositeLogger, ok = proc.GetStdoutLogger().(*logger.CompositeLogger)
 	} else {
-		compositeLogger, ok = proc.StderrLog.(*logger.CompositeLogger)
+		compositeLogger, ok = proc.GetStderrLogger().(*logger.CompositeLogger)
 	}
 
 	if !ok {

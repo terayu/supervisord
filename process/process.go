@@ -314,6 +314,20 @@ func (p *Process) GetStderrLogfile() string {
 	return expandFile
 }
 
+// GetStdoutLogger returns the stdout logger, or nil if the process has never been started.
+func (p *Process) GetStdoutLogger() logger.Logger {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.StdoutLog
+}
+
+// GetStderrLogger returns the stderr logger, or nil if the process has never been started.
+func (p *Process) GetStderrLogger() logger.Logger {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.StderrLog
+}
+
 func (p *Process) getStartSeconds() int64 {
 	return int64(p.config.GetInt("startsecs", 1))
 }
@@ -622,6 +636,10 @@ func (p *Process) run(finishCb func()) {
 		// logger.CompositeLogger is not `os.File`, so `cmd.Wait()` will wait for the logger to close
 		// if parent process passes its FD to child process, the logger will not close even when parent process exits
 		// we need to make sure the logger is closed when the process stops running
+		// capture this generation's loggers now, while p.lock is held, so a subsequent
+		// restart's setLog() (which also requires the write lock) cannot swap them out
+		// from under this goroutine before it closes them.
+		stdoutLog, stderrLog := p.StdoutLog, p.StderrLog
 		go func() {
 			// the sleep time must be less than `stopwaitsecs`, here I set half of `stopwaitsecs`
 			// otherwise the logger will not be closed before SIGKILL is sent
@@ -632,11 +650,11 @@ func (p *Process) run(finishCb func()) {
 				}
 				time.Sleep(halfWaitsecs)
 			}
-			if p.StdoutLog != nil {
-				p.StdoutLog.Close()
+			if stdoutLog != nil {
+				stdoutLog.Close()
 			}
-			if p.StderrLog != nil {
-				p.StderrLog.Close()
+			if stderrLog != nil {
+				stderrLog.Close()
 			}
 		}()
 
