@@ -1,373 +1,659 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Go-Supervisor</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <link rel="stylesheet" href="css/bootstrap.min.css"/>
-    <link rel="stylesheet" href="css/bootstrap-table.css"/>
-    <link rel="stylesheet" href="css/bootstrap-dialog.min.css"/>
-    <script src='js/jquery-3.3.1.min.js'></script>
-    <script src='js/popper.min.js'></script>
-    <script src='js/bootstrap.min.js'></script>
-    <script src='js/bootstrap-table.min.js'></script>
-    <script src='js/bootstrap-dialog.min.js'></script>
+<meta charset="utf-8">
+<title>Supervisor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="bootstrap-solid.svg">
+<style>
+:root {
+  color-scheme: light;
+  --plane:      #f9f9f7;
+  --surface:    #fcfcfb;
+  --surface-2:  #f2f2ee;
+  --line:       #e2e1db;
+  --line-2:     #d3d2ca;
+  --ink:        #0b0b0b;
+  --ink-2:      #52514e;
+  --ink-muted:  #898781;
+  --good:       #0ca30c;
+  --warning:    #fab219;
+  --serious:    #ec835a;
+  --critical:   #d03b3b;
+  --accent:     #2a78d6;
+  --good-bg:     #eaf6ea;
+  --warning-bg:  #fdf3de;
+  --serious-bg:  #fbeee8;
+  --critical-bg: #f9e8e8;
+  --neutral-bg:  #efefeb;
+  --shadow: 0 1px 2px rgba(11,11,11,.05), 0 4px 12px rgba(11,11,11,.04);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --plane:      #0d0d0d;
+    --surface:    #1a1a19;
+    --surface-2:  #232321;
+    --line:       #2e2e2b;
+    --line-2:     #3d3d39;
+    --ink:        #ffffff;
+    --ink-2:      #c3c2b7;
+    --ink-muted:  #898781;
+    --accent:     #3987e5;
+    --good-bg:     #12240f;
+    --warning-bg:  #2a2211;
+    --serious-bg:  #2b1c15;
+    --critical-bg: #2a1414;
+    --neutral-bg:  #262623;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane:      #0d0d0d;
+  --surface:    #1a1a19;
+  --surface-2:  #232321;
+  --line:       #2e2e2b;
+  --line-2:     #3d3d39;
+  --ink:        #ffffff;
+  --ink-2:      #c3c2b7;
+  --ink-muted:  #898781;
+  --accent:     #3987e5;
+  --good-bg:     #12240f;
+  --warning-bg:  #2a2211;
+  --serious-bg:  #2b1c15;
+  --critical-bg: #2a1414;
+  --neutral-bg:  #262623;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--plane);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 64px; }
+
+/* ---------- header ---------- */
+.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+.brand h1 { font-size: 21px; font-weight: 620; letter-spacing: -.01em; margin: 0; }
+.brand .host {
+  font-size: 12.5px; color: var(--ink-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  appearance: none; border: 1px solid var(--line-2); background: var(--surface);
+  color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 500;
+  padding: 7px 13px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .12s, border-color .12s, opacity .12s;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--ink-muted); }
+.btn:active:not(:disabled) { transform: translateY(.5px); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: .38; cursor: default; }
+.btn.sm { padding: 4px 9px; font-size: 12.5px; border-radius: 6px; }
+.btn.danger:not(:disabled) { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 40%, var(--line-2)); }
+.btn.danger:hover:not(:disabled) { background: var(--critical-bg); border-color: var(--critical); }
+.btn.icon { padding: 7px 9px; }
+
+/* ---------- stat tiles ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.tile {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
+}
+.tile .label { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+.tile .value { font-size: 30px; font-weight: 600; line-height: 1.15; margin-top: 6px; letter-spacing: -.02em; }
+.tile.is-zero .value { color: var(--ink-muted); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.dot.good { background: var(--good); }
+.dot.warning { background: var(--warning); }
+.dot.critical { background: var(--critical); }
+.dot.neutral { background: var(--ink-muted); }
+
+/* ---------- toolbar ---------- */
+.bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0; border-bottom: none;
+  padding: 12px 14px;
+}
+.search { position: relative; flex: 1 1 200px; min-width: 160px; }
+.search input {
+  width: 100%; font: inherit; font-size: 13.5px; color: var(--ink);
+  background: var(--plane); border: 1px solid var(--line-2);
+  border-radius: 7px; padding: 7px 11px 7px 30px;
+}
+.search input::placeholder { color: var(--ink-muted); }
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; }
+.sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+.toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-2); cursor: pointer; user-select: none; white-space: nowrap; }
+.toggle input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+
+/* ---------- table ---------- */
+.panel {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-muted);
+  padding: 10px 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--surface-2); white-space: nowrap;
+}
+tbody td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.sel { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.col-check { width: 38px; padding-right: 0 !important; }
+.col-check input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; display: block; }
+.pname { font-weight: 550; overflow-wrap: break-word; }
+.pgroup { font-size: 12px; color: var(--ink-muted); margin-top: 1px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.muted { color: var(--ink-muted); }
+.actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+.loglink { color: var(--accent); text-decoration: none; font-size: 12.5px; padding: 4px 6px; border-radius: 6px; }
+.loglink:hover { text-decoration: underline; }
+.loglink:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- status pill: color is never alone — icon + label ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 7px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 550; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.pill svg { flex: none; }
+.pill.good     { background: var(--good-bg);     color: var(--good);     border-color: color-mix(in srgb, var(--good) 30%, transparent); }
+.pill.warning  { background: var(--warning-bg);  color: #7a5300;         border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
+.pill.serious  { background: var(--serious-bg);  color: #a34a20;         border-color: color-mix(in srgb, var(--serious) 45%, transparent); }
+.pill.critical { background: var(--critical-bg); color: var(--critical); border-color: color-mix(in srgb, var(--critical) 35%, transparent); }
+.pill.neutral  { background: var(--neutral-bg);  color: var(--ink-2);    border-color: var(--line-2); }
+:root[data-theme="dark"] .pill.warning { color: var(--warning); }
+:root[data-theme="dark"] .pill.serious { color: var(--serious); }
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) .pill.warning { color: var(--warning); }
+  :root:where(:not([data-theme="light"])) .pill.serious { color: var(--serious); }
+}
+.spin { animation: spin 1.4s linear infinite; transform-origin: center; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+/* ---------- empty / footer ---------- */
+.empty { padding: 56px 20px; text-align: center; color: var(--ink-muted); }
+.empty .big { font-size: 15px; color: var(--ink-2); margin-bottom: 4px; }
+.foot { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 14px; font-size: 12.5px; color: var(--ink-muted); }
+.foot a { color: var(--ink-muted); }
+
+/* ---------- dialog ---------- */
+dialog {
+  border: 1px solid var(--line-2); border-radius: 12px; padding: 0;
+  background: var(--surface); color: var(--ink); max-width: 420px; width: calc(100% - 32px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.22);
+}
+dialog::backdrop { background: rgba(11,11,11,.42); }
+.dlg-body { padding: 20px 22px 6px; }
+.dlg-body h2 { margin: 0 0 8px; font-size: 16.5px; font-weight: 600; }
+.dlg-body p { margin: 0; color: var(--ink-2); font-size: 14px; }
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 22px 18px; }
+
+/* ---------- toast ---------- */
+#toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+.toast {
+  display: flex; align-items: flex-start; gap: 9px; max-width: 380px;
+  background: var(--surface); border: 1px solid var(--line-2); border-left: 3px solid var(--ink-muted);
+  border-radius: 8px; padding: 10px 13px; box-shadow: 0 8px 24px rgba(0,0,0,.16);
+  font-size: 13.5px; animation: rise .18s ease-out;
+}
+.toast.ok  { border-left-color: var(--good); }
+.toast.err { border-left-color: var(--critical); }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+
+@media (max-width: 700px) {
+  .wrap { padding: 18px 12px 48px; }
+  .hide-sm { display: none; }
+  .tile .value { font-size: 25px; }
+  .tile { padding: 12px 14px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .brand .host { display: none; }
+  .search { flex-basis: 100%; }
+}
+</style>
 </head>
-
-
-<script type="text/javascript">
-    var columns = [{
-        field: 'name',
-        title: 'Program'
-    }, {
-        field: 'statename',
-        title: 'State'
-    }, {
-        field: 'description',
-        title: 'Description'
-    }, {
-        field: 'action',
-        title: 'Action'
-    }];
-
-    var programs = []
-
-    function changeProgramState( name, statename ) {
-        for( var i = 0; i < programs.length; i++ ) {
-            if( name == programs[i]['name'] ) {
-                programs[i]['statename'] = statename;
-            }
-        }
-    }
-
-    function refreshDisplay() {
-        reformatPrograms( programs );
-        $("#programs").bootstrapTable('destroy');
-        $("#programs").bootstrapTable({
-            data: programs
-        });
-
-    }
-
-    function startProgram( name ) {
-        $.ajax( {
-            type: "POST",
-            contentType: "application/json",
-            dataType: "json",
-            url: "/program/start/" + name,
-            success: function( data, status, jqXHR  ) {
-                if( data['success'] ) {
-                    changeProgramState( name, "RUNNING" );
-                    refreshDisplay();
-                } else {
-                    confirm_dialog( { 'title': "Information",
-                        'message': "Fail to start program, please check the log of supervisord to find reason",
-                        'cancel-text': "Cancel",
-                        'cancel-hide': true,
-                        'confirm-text': "Ok",
-                        'confirm-onclick': function() {}
-                    } );
-
-                }
-            },
-            error: function( jqXHR, status, errorThrown ) {
-                confirm_dialog( { 'title': "Information",
-                    'message': "Fail to start program, please check if supervisord is started or not",
-                    'cancel-text': "Cancel",
-                    'cancel-hide': true,
-                    'confirm-text': "Ok",
-                    'confirm-onclick': function() {}
-                } );
-
-            }
-        });
-    };
-
-    function stopProgram( programName ) {
-        return new Promise((resolve, reject) =>{
-            confirm_dialog( { 'title': "Stop confirmation",
-                'message': "Do you really want to stop program?",
-                'cancel-text': "Cancel",
-                'confirm-text': "Stop",
-                'confirm-onclick': async function() {
-                    await doStopProgram( programName );
-                    resolve("success");
-                }
-            } );
-        })
-    }
-
-    async function restartProgram( programName ){
-        await stopProgram(programName)
-        startProgram(programName)
-
-    }
-
-    function doStopProgram( name ) {
-        return new Promise(
-            (resolve, reject) =>{
-                $.ajax( {
-                    type: "POST",
-                    contentType: "application/json",
-                    dataType: "json",
-                    url: "/program/stop/" + name,
-                    success: function( data, status, jqXHR  ) {
-                        if( data['success'] ) {
-                            changeProgramState( name, 'STOPPED' );
-                            refreshDisplay();
-                        } else {
-                            confirm_dialog( { 'title': "Information",
-                                'message': "Fail to stop program, please check the log of supervisord",
-                                'cancel-text': "Cancel",
-                                'cancel-hide': true,
-                                'confirm-text': "Ok",
-                                'confirm-onclick': function() {
-                                }
-                            } );
-                        }
-                        resolve("success")
-                    },
-                    error: function( jqXHR, status, errorThrown ) {
-                        confirm_dialog( { 'title': "Information",
-                            'message': "Fail to stop program, please check if supervisord is running",
-                            'cancel-text': "Cancel",
-                            'cancel-hide': true,
-                            'confirm-text': "Ok",
-                            'confirm-onclick': function() {
-                            }
-                        } );
-                        reject("err")
-
-                    }
-                });
-            })
-
-    }
-
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, function (c) {
-            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-        });
-    }
-
-    function reformatPrograms( programs ) {
-        for( var i in programs ) {
-            var statename = programs[i]['statename'];
-            var name = escapeHtml(programs[i]['name']);
-            var action = "";
-            var color = "";
-            var running = statename.toLowerCase().indexOf("running") >= 0 || statename.toLowerCase().indexOf("starting") >= 0;
-
-            if( running ) {
-                action = '<button type="button" disabled class="btn btn-primary mr-1 js-start" data-name="' + name + '">Start</button>';
-                action = action + '<button type="button" class="btn btn-primary mr-1 js-stop" data-name="' + name + '">Stop</button>';
-                action = action + '<button type="button" class="btn btn-primary mr-1 js-restart" data-name="' + name + '">ReStart</button>';
-                color = "green";
-            } else {
-                action = '<button type="button" class="btn btn-primary mr-1 js-start" data-name="' + name + '">Start</button>';
-                action = action + '<button type="button" disabled class="btn btn-primary mr-1 js-stop" data-name="' + name + '">Stop</button>';
-                action = action + '<button type="button" disabled class="btn btn-primary mr-1 js-restart" data-name="' + name + '">ReStart</button>';
-                color = "red";
-            }
-
-            action = action + '<a href="/log?name=' + encodeURIComponent(programs[i]['name']) + '">Logs </a>';
-
-            programs[i]['action'] = action;
-            programs[i]['statename'] = '<div style="background-color:' + color + ';">' + escapeHtml(statename) + '</div>';
-        }
-    };
-
-    function confirm_dialog( confirm ) {
-        $('#my-modal-title').text(confirm['title'] );
-        $('#my-modal-message').text( confirm['message'] );
-        $('#my-modal-cancel-btn').text( confirm['cancel-text'] );
-        $('#my-modal-confirm-btn').text( confirm['confirm-text'] );
-        $('#my-modal-confirm-btn').unbind( 'click' );
-        if( confirm.hasOwnProperty( 'cancel-hide') && confirm['cancel-hide'] ) {
-            $('#my-modal-cancel-btn').hide();
-        } else {
-            $('#my-modal-cancel-btn').show();
-        }
-        $('#my-modal-confirm-btn').click( confirm['confirm-onclick'] );
-        $("#myModal").modal('show');
-
-    }
-
-    function shutdown_supervisor() {
-        confirm_dialog( { 'title': "Shutdown confirmation",
-            'message': "Do you really want to shutdown supervisor?",
-            'cancel-text': "Cancel",
-            'confirm-text': "Shutdown",
-            'confirm-onclick': function() {
-                $.ajax( {
-                    type: "PUT",
-                    url: "/supervisor/shutdown",
-                    contentType: "application/json",
-                    dataType: "text",
-                    success: function( data, status, jqXHR ) {
-                    },
-                    error: function( jqXHR, textStatus, errorThrown ) {
-                    }
-                });
-
-            }
-        } );
-
-    };
-
-    function reload_supervisor() {
-        confirm_dialog( { 'title': "Reload confirmation",
-            'message': "Do you really want to reload supervisor?",
-            'cancel-text': "Cancel",
-            'confirm-text': "Reload",
-            'confirm-onclick': function() {
-                $.ajax( {
-                    type: "POST",
-                    url: "/supervisor/reload",
-                    contentType: "application/json",
-                    dataType: "text",
-                    success: function( data, status, jqXHR ) {
-                        list_programs();
-                    },
-                    error: function( jqXHR, textStatus, errorThrown ) {
-                        list_programs();
-                    }
-                });
-
-            }
-        } );
-    }
-
-    function get_selected_programs() {
-        selected = $("#programs").bootstrapTable('getSelections');
-        programs = [];
-        for(i in selected) {
-            programs.push( selected[i]['name'] );
-        }
-        return programs;
-
-    }
-    function start_select() {
-        programs = get_selected_programs();
-        if( programs.length <= 0 ) {
-            alert( "no program selected" );
-            return;
-        }
-        $.ajax( {
-            type: "POST",
-            url: "/program/startPrograms",
-            contentType: "application/json",
-            data: JSON.stringify( programs ),
-            dataType: "text",
-            success: function( data, status, jqXHR ) {
-                list_programs();
-            },
-            error: function( jqXHR, textStatus, errorThrown ) {
-                list_programs();
-            }
-        });
-    }
-
-    function stop_select() {
-        programs = get_selected_programs();
-        if( programs.length <= 0 ) {
-            alert( "no program selected" );
-            return;
-        }
-        $.ajax( {
-            type: "POST",
-            url: "/program/stopPrograms",
-            contentType: "application/json",
-            data: JSON.stringify( programs ),
-            dataType: "text",
-            success: function( data, status, jqXHR ) {
-                list_programs();
-            },
-            error: function( jqXHR, textStatus, errorThrown ) {
-                list_programs();
-            }
-        });
-
-    }
-
-    function list_programs() {
-        $.ajax({
-            type: "GET",
-            url: "/program/list",
-            dataType: "json",
-            success: function( data, status, jqXHR ) {
-                programs = data;
-                refreshDisplay();
-            },
-            error: function( jqXHR, textStatus, errorThrown ) {
-                alert( textStatus );
-            }
-        });
-    }
-
-    $(document).ready(function() {
-        $(document).on('click', '.js-start:not([disabled])', function() {
-            startProgram($(this).attr('data-name'));
-        });
-        $(document).on('click', '.js-stop:not([disabled])', function() {
-            stopProgram($(this).attr('data-name'));
-        });
-        $(document).on('click', '.js-restart:not([disabled])', function() {
-            restartProgram($(this).attr('data-name'));
-        });
-        list_programs();
-    });
-</script>
 <body>
-<H1 class="text-center text-success">Go-Supervisor</H1>
-<div class="container">
-    <div class='row'>
-        <div class="col-12">
+<div class="wrap">
 
-            <a href="http://10.234.254.27:9996/graph" class="text-decoration-none mr-3" target="_blank">Prometheus</a>
-            <a href="http://127.0.0.1:3000" class="text-decoration-none" target="_blank">Grafana</a>
+  <header class="top">
+    <div class="brand">
+      <h1>Supervisor</h1>
+      <span class="host" id="host"></span>
+    </div>
+    <button class="btn icon" id="theme" type="button" title="Toggle theme" aria-label="Toggle theme"></button>
+    <button class="btn" id="reload" type="button">Reload config</button>
+    <button class="btn danger" id="shutdown" type="button">Shutdown</button>
+  </header>
 
-            <input type="button" class="btn btn-primary float-right mr-1" value="Shutdown" onclick='shutdown_supervisor();'>
-            <input type="button" class="btn btn-primary float-right mr-1" value="Reload" onclick='reload_supervisor();'>
-            <input type="button" class="btn btn-primary float-right mr-1" value="Stop Select" onclick='stop_select();'>
-            <input type="button" class="btn btn-primary float-right mr-1" value="Start Select" onclick='start_select();'>
-        </div>
+  <section class="stats" id="stats" aria-label="Summary"></section>
+
+  <div class="bar">
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14" stroke-linecap="round"/></svg>
+      <input type="search" id="filter" placeholder="Filter programs…" autocomplete="off" aria-label="Filter programs">
     </div>
-    <div class="table-responsive mt-3">
-        <table id="programs"
-               data-toggle="table"
-               data-click-to-select="true" >
-            <thead>
-            <th data-field="id" data-checkbox="true"></th>
-            <th data-field="name">Program</th>
-            <th data-field="statename">State</th>
-            <th data-field="description">Description</th>
-            <th data-field="action">Action</th>
-            </thead>
-        </table>
+    <button class="btn sm" id="startSel" type="button" disabled>Start selected</button>
+    <button class="btn sm" id="stopSel" type="button" disabled>Stop selected</button>
+    <div class="sep hide-sm"></div>
+    <label class="toggle"><input type="checkbox" id="auto" checked>Auto-refresh</label>
+    <button class="btn sm" id="refresh" type="button">Refresh</button>
+  </div>
+
+  <div class="panel">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="all" aria-label="Select all"></th>
+            <th>Program</th>
+            <th>State</th>
+            <th class="hide-sm">PID</th>
+            <th class="hide-sm">Uptime</th>
+            <th style="text-align:right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
+    <div class="empty" id="empty" hidden></div>
+  </div>
+
+  <div class="foot">
+    <span id="updated"></span>
+    <a href="metrics" target="_blank" rel="noopener">Metrics</a>
+  </div>
 </div>
 
+<dialog id="confirm">
+  <div class="dlg-body"><h2 id="dlgTitle"></h2><p id="dlgMsg"></p></div>
+  <div class="dlg-foot">
+    <button class="btn" id="dlgNo" type="button">Cancel</button>
+    <button class="btn danger" id="dlgYes" type="button">Confirm</button>
+  </div>
+</dialog>
 
-<div id="myModal" class="modal fade">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
-                <h4 class="modal-title" id="my-modal-title">Confirmation</h4>
-            </div>
-            <div class="modal-body">
-                <p id="my-modal-message">Do you want to save changes you made to document before closing?</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-dismiss="modal" id='my-modal-cancel-btn'>Cancel</button>
-                <button type="button" class="btn btn-primary" data-dismiss="modal" id='my-modal-confirm-btn'>Shutdown</button>
-            </div>
-        </div>
-    </div>
-</div>
+<div id="toasts" aria-live="polite"></div>
 
+<script>
+"use strict";
 
+/* Supervisord process states (process/process.go). Stopped and Exited are
+   deliberate outcomes, not failures, so they read neutral rather than red. */
+var STATES = {
+  0:    { label: "Stopped",  role: "neutral",  icon: "square" },
+  10:   { label: "Starting", role: "warning",  icon: "spinner" },
+  20:   { label: "Running",  role: "good",     icon: "play" },
+  30:   { label: "Backoff",  role: "serious",  icon: "alert" },
+  40:   { label: "Stopping", role: "warning",  icon: "spinner" },
+  100:  { label: "Exited",   role: "neutral",  icon: "square" },
+  200:  { label: "Fatal",    role: "critical", icon: "alert" },
+  1000: { label: "Unknown",  role: "neutral",  icon: "question" }
+};
+
+var ICONS = {
+  play:    '<path d="M5 3.5l7 4.5-7 4.5z" fill="currentColor"/>',
+  square:  '<rect x="4.5" y="4.5" width="7" height="7" rx="1.2" fill="currentColor"/>',
+  alert:   '<path d="M8 2.6l6 10.8H2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6.6v3.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".85" fill="currentColor"/>',
+  spinner: '<g class="spin"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-opacity=".3"/><path d="M8 3a5 5 0 0 1 5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g>',
+  question:'<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6.4 6.3a1.7 1.7 0 1 1 1.9 1.9v.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="8.1" cy="11.3" r=".8" fill="currentColor"/>'
+};
+
+var programs = [];
+var selected = Object.create(null);
+var busy = Object.create(null);
+var timer = null;
+
+var $ = function (id) { return document.getElementById(id); };
+
+function svg(name, size) {
+  var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("width", size); s.setAttribute("height", size);
+  s.setAttribute("viewBox", "0 0 16 16"); s.setAttribute("aria-hidden", "true");
+  s.innerHTML = ICONS[name];              /* static markup, never program data */
+  return s;
+}
+
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) { n.className = cls; }
+  if (text !== undefined) { n.textContent = text; }   /* untrusted data goes here only */
+  return n;
+}
+
+function stateOf(p) {
+  return STATES[p.state] || { label: String(p.statename || "Unknown"), role: "neutral", icon: "question" };
+}
+
+function uptime(p) {
+  if (p.state !== 20 || !p.start) { return ""; }
+  var s = Math.max(0, (p.now || Math.floor(Date.now() / 1000)) - p.start);
+  var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600),
+      m = Math.floor(s % 3600 / 60), x = s % 60;
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  return (d ? d + "d " : "") + pad(h) + ":" + pad(m) + ":" + pad(x);
+}
+
+/* ---------- network ---------- */
+
+function api(method, url, body) {
+  var opt = { method: method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) { opt.body = JSON.stringify(body); }
+  return fetch(url, opt).then(function (r) {
+    if (!r.ok) { throw new Error("HTTP " + r.status); }
+    return r.text().then(function (t) {
+      try { return t ? JSON.parse(t) : {}; } catch (e) { return {}; }
+    });
+  });
+}
+
+function load() {
+  return fetch("program/list", { headers: { "Accept": "application/json" } })
+    .then(function (r) {
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      return r.json();
+    })
+    .then(function (data) {
+      programs = Array.isArray(data) ? data : [];
+      var live = Object.create(null);
+      programs.forEach(function (p) { if (selected[p.name]) { live[p.name] = true; } });
+      selected = live;
+      render();
+      $("updated").textContent = "Updated " + new Date().toLocaleTimeString();
+    })
+    .catch(function (e) {
+      toast("Cannot reach supervisord (" + e.message + ")", "err");
+    });
+}
+
+function act(name, verb) {
+  busy[name] = true; render();
+  return api("POST", "program/" + verb + "/" + encodeURIComponent(name))
+    .then(function (res) {
+      if (res && res.success === false) { throw new Error("refused"); }
+      toast(name + " " + (verb === "start" ? "started" : "stopped"), "ok");
+    })
+    .catch(function (e) {
+      toast("Failed to " + verb + " " + name + " (" + e.message + ")", "err");
+    })
+    .then(function () {
+      delete busy[name];
+      return load();
+    });
+}
+
+/* ---------- rendering ---------- */
+
+function render() {
+  var q = $("filter").value.trim().toLowerCase();
+  var shown = programs.filter(function (p) {
+    return !q || String(p.name).toLowerCase().indexOf(q) >= 0 ||
+                 String(p.group || "").toLowerCase().indexOf(q) >= 0;
+  });
+
+  renderStats();
+
+  var tb = $("rows");
+  tb.textContent = "";
+  shown.forEach(function (p) { tb.appendChild(row(p)); });
+
+  var e = $("empty");
+  e.hidden = shown.length > 0;
+  if (!shown.length) {
+    e.textContent = "";
+    e.appendChild(el("div", "big", programs.length ? "No program matches this filter" : "No programs configured"));
+    e.appendChild(el("div", null, programs.length ? "Clear the filter to see all " + programs.length + "." : "Add a [program:x] section to supervisord.conf and reload."));
+  }
+
+  var n = Object.keys(selected).length;
+  $("startSel").disabled = !n;
+  $("stopSel").disabled = !n;
+  $("startSel").textContent = n ? "Start selected (" + n + ")" : "Start selected";
+  $("stopSel").textContent = n ? "Stop selected (" + n + ")" : "Stop selected";
+  $("all").checked = shown.length > 0 && n === shown.length;
+  $("all").indeterminate = n > 0 && n < shown.length;
+}
+
+function renderStats() {
+  var running = 0, stopped = 0, problem = 0, transit = 0;
+  programs.forEach(function (p) {
+    var r = stateOf(p).role;
+    if (r === "good") { running++; }
+    else if (r === "critical" || r === "serious") { problem++; }
+    else if (r === "warning") { transit++; }
+    else { stopped++; }
+  });
+  var tiles = [
+    { label: "Programs", value: programs.length, dot: null },
+    { label: "Running", value: running, dot: "good" },
+    { label: "Stopped", value: stopped + transit, dot: "neutral" },
+    { label: "Problems", value: problem, dot: "critical" }
+  ];
+  var box = $("stats");
+  box.textContent = "";
+  tiles.forEach(function (t) {
+    var tile = el("div", "tile" + (t.value === 0 ? " is-zero" : ""));
+    var lab = el("div", "label");
+    if (t.dot) { lab.appendChild(el("span", "dot " + t.dot)); }
+    lab.appendChild(el("span", null, t.label));
+    tile.appendChild(lab);
+    tile.appendChild(el("div", "value", String(t.value)));
+    box.appendChild(tile);
+  });
+}
+
+function row(p) {
+  var st = stateOf(p);
+  var live = st.role === "good" || st.role === "warning";
+  var working = !!busy[p.name];
+  var tr = el("tr", selected[p.name] ? "sel" : "");
+
+  var c = el("td", "col-check");
+  var cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !!selected[p.name];
+  cb.setAttribute("aria-label", "Select " + p.name);
+  cb.onchange = function () {
+    if (cb.checked) { selected[p.name] = true; } else { delete selected[p.name]; }
+    render();
+  };
+  c.appendChild(cb);
+  tr.appendChild(c);
+
+  var nameCell = el("td");
+  nameCell.appendChild(el("div", "pname", p.name));
+  if (p.group && p.group !== p.name) { nameCell.appendChild(el("div", "pgroup", p.group)); }
+  tr.appendChild(nameCell);
+
+  var stCell = el("td");
+  var pill = el("span", "pill " + st.role);
+  pill.appendChild(svg(st.icon, 13));
+  pill.appendChild(el("span", null, st.label));
+  stCell.appendChild(pill);
+  tr.appendChild(stCell);
+
+  var pid = el("td", "mono hide-sm", p.pid ? String(p.pid) : "—");
+  if (!p.pid) { pid.classList.add("muted"); }
+  tr.appendChild(pid);
+
+  var up = uptime(p);
+  var upCell = el("td", "mono hide-sm", up || "—");
+  if (!up) { upCell.classList.add("muted"); }
+  tr.appendChild(upCell);
+
+  var a = el("td");
+  var box = el("div", "actions");
+  box.appendChild(button("Start", !live && !working, function () { act(p.name, "start"); }));
+  box.appendChild(button("Stop", live && !working, function () { confirmStop(p.name); }));
+  box.appendChild(button("Restart", live && !working, function () { confirmRestart(p.name); }));
+  var lg = el("a", "loglink", "Logs");
+  lg.href = "log?name=" + encodeURIComponent(p.name);
+  box.appendChild(lg);
+  a.appendChild(box);
+  tr.appendChild(a);
+  return tr;
+}
+
+function button(label, enabled, fn) {
+  var b = el("button", "btn sm", label);
+  b.type = "button";
+  b.disabled = !enabled;
+  b.onclick = fn;
+  return b;
+}
+
+/* ---------- dialogs & toasts ---------- */
+
+function ask(title, msg, yes) {
+  $("dlgTitle").textContent = title;
+  $("dlgMsg").textContent = msg;
+  $("dlgYes").textContent = yes;
+  var dlg = $("confirm");
+  return new Promise(function (resolve) {
+    var done = function (v) {
+      $("dlgYes").onclick = null;
+      $("dlgNo").onclick = null;
+      dlg.close();
+      resolve(v);
+    };
+    $("dlgYes").onclick = function () { done(true); };
+    $("dlgNo").onclick = function () { done(false); };
+    dlg.showModal();
+  });
+}
+
+function toast(msg, kind) {
+  var t = el("div", "toast " + (kind || ""), msg);
+  $("toasts").appendChild(t);
+  setTimeout(function () { t.remove(); }, 4200);
+}
+
+function confirmStop(name) {
+  ask("Stop program", "Stop “" + name + "”?", "Stop").then(function (ok) {
+    if (ok) { act(name, "stop"); }
+  });
+}
+
+function confirmRestart(name) {
+  ask("Restart program", "Restart “" + name + "”?", "Restart").then(function (ok) {
+    if (!ok) { return; }
+    act(name, "stop").then(function () { return act(name, "start"); });
+  });
+}
+
+function bulk(verb) {
+  var names = Object.keys(selected);
+  if (!names.length) { return; }
+  var go = function () {
+    api("POST", "program/" + verb + "Programs", names)
+      .then(function () { toast(names.length + " program(s) " + verb + "ed", "ok"); })
+      .catch(function (e) { toast("Bulk " + verb + " failed (" + e.message + ")", "err"); })
+      .then(load);
+  };
+  if (verb === "stop") {
+    ask("Stop programs", "Stop " + names.length + " selected program(s)?", "Stop").then(function (ok) {
+      if (ok) { go(); }
+    });
+  } else { go(); }
+}
+
+/* ---------- wiring ---------- */
+
+function setAuto(on) {
+  if (timer) { clearInterval(timer); timer = null; }
+  if (on) { timer = setInterval(load, 5000); }
+}
+
+function applyTheme(mode) {
+  if (mode) { document.documentElement.setAttribute("data-theme", mode); }
+  else { document.documentElement.removeAttribute("data-theme"); }
+  var dark = mode === "dark" || (!mode && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  $("theme").textContent = dark ? "☀" : "☾";
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  $("host").textContent = location.host;
+
+  var saved = null;
+  try { saved = localStorage.getItem("sv-theme"); } catch (e) { /* private mode */ }
+  applyTheme(saved);
+  $("theme").onclick = function () {
+    var cur = document.documentElement.getAttribute("data-theme");
+    var next = cur === "dark" ? "light" : cur === "light" ? null : "dark";
+    try { next ? localStorage.setItem("sv-theme", next) : localStorage.removeItem("sv-theme"); } catch (e) { /* ignore */ }
+    applyTheme(next);
+  };
+
+  $("filter").oninput = render;
+  $("refresh").onclick = load;
+  $("auto").onchange = function () { setAuto(this.checked); };
+  $("startSel").onclick = function () { bulk("start"); };
+  $("stopSel").onclick = function () { bulk("stop"); };
+
+  $("all").onchange = function () {
+    var q = $("filter").value.trim().toLowerCase();
+    selected = Object.create(null);
+    if (this.checked) {
+      programs.forEach(function (p) {
+        if (!q || String(p.name).toLowerCase().indexOf(q) >= 0 ||
+                  String(p.group || "").toLowerCase().indexOf(q) >= 0) {
+          selected[p.name] = true;
+        }
+      });
+    }
+    render();
+  };
+
+  $("reload").onclick = function () {
+    ask("Reload configuration", "Re-read supervisord.conf and apply the changes?", "Reload").then(function (ok) {
+      if (!ok) { return; }
+      api("POST", "supervisor/reload")
+        .then(function (res) {
+          if (res && res.success === false) { throw new Error("supervisord refused the reload"); }
+          toast("Configuration reloaded", "ok");
+        })
+        .catch(function (e) { toast("Reload failed — " + e.message, "err"); })
+        .then(load);
+    });
+  };
+
+  $("shutdown").onclick = function () {
+    ask("Shut down supervisord", "This stops supervisord and every program it manages.", "Shut down").then(function (ok) {
+      if (!ok) { return; }
+      api("PUT", "supervisor/shutdown")
+        .catch(function () { /* the connection drops as it exits */ })
+        .then(function () {
+          setAuto(false);
+          $("auto").checked = false;
+          toast("Shutdown requested", "ok");
+        });
+    });
+  };
+
+  setAuto(true);
+  load();
+});
+</script>
 </body>
-
 </html>
