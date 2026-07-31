@@ -152,9 +152,8 @@ func (sr *SupervisorRestful) Shutdown(w http.ResponseWriter, req *http.Request) 
 func (sr *SupervisorRestful) Reload(w http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
-	reply := struct{ Ret bool }{false}
-	sr.supervisor.Reload(false)
-	r := map[string]bool{"success": reply.Ret}
+	_, _, _, err := sr.supervisor.Reload(false)
+	r := map[string]bool{"success": err == nil}
 	json.NewEncoder(w).Encode(&r)
 }
 
