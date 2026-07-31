@@ -1,5 +1,11 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ochinchina/supervisord)](https://goreportcard.com/report/github.com/ochinchina/supervisord)
 
+> **This is a fork of [ochinchina/supervisord](https://github.com/ochinchina/supervisord)**, branched at
+> `16cb640`. It hardens the HTTP interface, fixes several concurrency and
+> configuration-reload defects, and replaces the web GUI. Some of it changes
+> behaviour you may be relying on — see [Differences from upstream](#differences-from-upstream)
+> before you drop this binary in place of the upstream one.
+
 # Why this project?
 
 The python script supervisord is a powerful tool used by a lot of guys to manage the processes. I like  supervisord too.
@@ -10,17 +16,49 @@ This project re-implements supervisord in go-lang. Compiled supervisord is very 
 
 # Building the supervisord
 
-Before compiling the supervisord, make sure the go-lang 1.11+ is installed in your environment.
+Go 1.21+ is required (`go.mod` declares 1.24).
 
-To compile supervisord for **linux**, run following commands:
+**`-tags release` is not optional.** It selects `assets_release.go`, which embeds
+`webgui/` into the binary with `//go:embed`. Without it you get `assets_dev.go`,
+which serves the GUI from `./webgui` *relative to the working directory the
+daemon was started in* — so the GUI 404s for anything but a build run from the
+source tree. There is no `go generate` step any more; the embed replaced it.
 
-1. go generate
-2. GOOS=linux go build -tags release -a -ldflags "-linkmode external -extldflags -static" -o supervisord
+Linux:
 
-To compile supervisord for **windows**, run following commands on one `Windows PC`:
+```shell
+GOOS=linux go build -tags release -a -ldflags "-linkmode external -extldflags -static" -o supervisord
+```
 
-1. go mod tidy
-2. go build -tags release -o supervisord.exe
+Windows:
+
+```shell
+GOOS=windows go build -tags release -o supervisord.exe
+```
+
+Or use the [Task](https://taskfile.dev) targets, which pass the tag for you:
+
+```shell
+task build          # host platform
+task buildvendor    # host platform, from vendor/
+task buildwin       # windows/amd64 (from a non-Windows host)
+```
+
+### If you edit anything under `process/`, `config/`, `logger/`, …
+
+This repo `replace`s its own sub-packages to local directories, **and** vendors
+them. Because `go.mod` declares `go 1.24` and a `vendor/` directory exists, Go
+resolves through `vendor/` **even when you do not pass `-mod=vendor`**. Editing
+`process/process.go` and rebuilding therefore produces a binary without your
+change, silently.
+
+```shell
+go mod vendor       # run this after editing any sub-package, before building
+```
+
+Files in `package main` at the repo root (`supervisor.go`, `xmlrpc.go`, …) are
+not vendored and need no such step. `vendor/` is gitignored, so a fresh clone has
+none and `task buildvendor` will fail until you run `go mod vendor` once.
 
 # Run the supervisord
 
@@ -33,14 +71,26 @@ command = /your/program args
 $ supervisord -c supervisor.conf
 ```
 
-Please note that config-file location autodetected in this order:
+Please note that config-file location is autodetected in this order (see
+`findSupervisordConf` in `main.go`):
 
-1. $CWD/supervisord.conf
-2. $CWD/etc/supervisord.conf
-3. /etc/supervisord.conf
-4. /etc/supervisor/supervisord.conf (since Supervisor 3.3.0)
-5. ../etc/supervisord.conf (Relative to the executable)
-6. ../supervisord.conf (Relative to the executable)
+1. the path given to `-c`
+2. ./supervisord.ini
+3. ./etc/supervisord.conf
+4. /etc/supervisord.conf
+5. /etc/supervisor/supervisord.conf (since Supervisor 3.3.0)
+6. ../etc/supervisord.conf
+7. ../supervisord.conf
+8. ./supervisord.conf
+
+The relative entries are resolved against the **current working directory**, not
+the executable. A config file whose name is not on that list — say
+`supervisord_myhost.conf` — is never found automatically, so `-c` is required
+both for the daemon and for every `supervisord ctl` invocation.
+
+If the file cannot be read, supervisord logs the reason and exits non-zero
+rather than starting up and supervising nothing. See
+[Differences from upstream](#differences-from-upstream).
 
 
 # Run as daemon with web-ui
@@ -99,12 +149,34 @@ $ supervisord version
 
 ## Http server
 
-Http server can work via both unix domain socket and TCP. Basic auth is optional and supported too.
+Http server can work via both unix domain socket and TCP. Basic auth is
+supported and, off loopback, required.
 
 The unix domain socket setting is in the "unix_http_server" section.
 The TCP http server setting is in "inet_http_server" section.
 
 If both "inet_http_server" and "unix_http_server" are not set up in the configuration file, no http server will be started.
+
+This interface can start and stop processes, write to their stdin, reload the
+configuration and shut the daemon down, so it is treated as a control plane:
+
+- **Every** route is behind basic auth when a username and password are set —
+  including `/metrics` and the per-program log directories.
+- **Binding to a non-loopback address without a username and password is
+  refused.** The listener does not start; supervisord keeps running so a bad
+  HTTP setting never takes the managed processes down with it. Loopback binds
+  without credentials are allowed with a warning. Set `allow_no_auth=true` in
+  `[inet_http_server]` to get the old behaviour back.
+- The unix socket is chmod'ed to `0700`, so only its owner can drive it.
+- Credentials are compared in constant time. `{SHA}<sha1-hex>` password digests
+  are still accepted, as in the python implementation.
+- State-changing REST calls must not look cross-origin: if `Origin` is present
+  it has to match `Host`, and the `Content-Type` must not be one an HTML form
+  can produce. Send `application/json`. `/RPC2` is unaffected — gorilla/rpc
+  already requires `text/xml`.
+
+There is no TLS. Terminate it in front of supervisord if the interface leaves
+the host.
 
 ## Supervisord daemon settings
 
@@ -234,11 +306,26 @@ syslog_stderr_priority=err
 
 # Web GUI
 
-Supervisord has builtin web GUI: you can start, stop & check the status of program from the GUI. Following picture shows the default web GUI:
+Supervisord has a builtin web GUI: you can start, stop, restart and check the
+status of every program from it, filter the list, and browse each program's log
+directory.
 
-![alt text](https://github.com/ochinchina/supervisord/blob/master/go_supervisord_gui.png)
+![The web GUI in dark mode](go_supervisord_gui.png)
 
-Please note that in order to see|use Web GUI you should configure it in /etc/supervisord.conf both in [inet_http_server] (and|or [unix_http_server] if you prefer unix domain socket) and [supervisorctl]:
+![The web GUI in light mode](webgui-light.png)
+
+It follows the operating system's light/dark setting and has a toggle that
+overrides it. Program state is read from supervisord's numeric state and shown
+as an icon plus a label, so `Stopped` (a deliberate outcome) does not look like
+`Fatal`.
+
+The GUI is **self-contained**: no jQuery, no Bootstrap, no CDN, no outbound
+request of any kind. Together with `-tags release` this means a single binary
+and a config file are enough — the GUI works on an air-gapped host with nothing
+else on disk.
+
+To use it, configure `[inet_http_server]` (and/or `[unix_http_server]`), plus
+`[supervisorctl]` if you also want the `ctl` subcommand:
 
 ```ini
 [inet_http_server]
@@ -248,7 +335,110 @@ port=127.0.0.1:9001
 
 [supervisorctl]
 serverurl=http://127.0.0.1:9001
+;username=test1
+;password=thepassword
 ```
+
+`[supervisorctl]` needs its own copy of the credentials — `supervisord ctl` does
+not read them from `[inet_http_server]`. If `[inet_http_server]` has a password
+and `[supervisorctl]` does not, every `ctl` command fails with
+`Bad response with status code 401`.
+
+To reach the GUI from another machine, bind to a routable address **and** set a
+username and password; a non-loopback bind without credentials is refused. Note
+`*:9001` does not work — the address is passed to `net.Listen` unchanged, so use
+`0.0.0.0:9001`.
+
+# Differences from upstream
+
+Branched from [ochinchina/supervisord](https://github.com/ochinchina/supervisord)
+at `16cb640`. Everything below is this fork.
+
+## Behaviour that changed — read this before upgrading
+
+These four can break a working setup. The rest of the list only fixes things.
+
+| Change | What breaks |
+|---|---|
+| A non-loopback bind with no `username`/`password` is refused | An `[inet_http_server]` on `:9001` or `0.0.0.0:9001` with no credentials stops listening. supervisord itself keeps running. Set credentials, bind to `127.0.0.1`, or set `allow_no_auth=true`. |
+| A config file that cannot be read is fatal at startup | Upstream started anyway and supervised nothing. This exits non-zero with the reason. A wrong `-c` path now fails loudly instead of looking like a hung service. |
+| State-changing REST calls are checked for cross-origin | A client posting `application/x-www-form-urlencoded` gets 415. Send `application/json`. Behind a reverse proxy, pass the original `Host` (`proxy_set_header Host $host;`) or the `Origin` check rejects the request. |
+| The config editor page is gone | `/confFile` and `/conf/{program}` now 404. It never saved anything — the Save button had no handler and no route wrote files — so nothing that worked stopped working. |
+
+`/metrics` and `/log/<program>/` also require credentials now, which will break
+an unauthenticated Prometheus scrape.
+
+## Security
+
+- `/log/<program>/` served the whole directory containing `stdout_logfile`
+  without the auth wrapper every other route had. `http.ServeMux` prefers the
+  more specific pattern, so it shadowed the authenticated `/` catch-all instead
+  of falling through to it. `/metrics` was unwrapped too. (`51e9798`)
+- Binding off loopback with no credentials is refused; the unix socket is
+  `0700`; credentials are compared with `crypto/subtle`. (`51e9798`)
+- CSRF: browsers replay basic auth automatically, so a plain HTML form on
+  another origin could reach `/supervisor/shutdown`. State-changing requests now
+  have to pass an `Origin`/`Host` check and a `Content-Type` check. (`b0898b1`)
+- DOM XSS in the GUI: `log.html` took the program name from the query string and
+  inserted the server's response with `$().html()`, so anyone able to write to a
+  monitored program's log could run script in an admin's browser. `index.html`
+  concatenated program names into markup and into a JavaScript string literal
+  inside `onclick`. (`f518420`)
+
+## Correctness
+
+- **Reload dropped nothing.** `Entry.parse` merged into the existing key set and
+  `Config.Load` never discarded the previous `Entry`, so deleting a line from
+  `supervisord.conf` and reloading left the old value in effect until the daemon
+  was restarted. Changing a value worked, which made it hard to notice.
+  (`0bb65a7`)
+- **A failed reload stopped everything.** `Config.Load` could not report failure
+  at all — the ini loader it calls has no error return — so an unreadable config
+  yielded an empty program list and a nil error, and `Supervisor.Reload` computed
+  "every program was removed" from it and stopped them all, then answered
+  `{"success":true}`. (`138510b`)
+- **`p.cmd` data race → crash.** `run()` reassigns `p.cmd` on every restart under
+  the write lock; `isRunning()` read it without one, from three callers that hold
+  no lock. Between the nil check and the dereference the pointer could be
+  replaced by the next attempt's command, whose `Process` is still nil, and
+  supervisord panicked — taking every managed process with it. (`297bfd4`)
+- **`p.state` data race.** `Stop()` was the only caller of `changeStateTo` that
+  did not hold the lock, and its wait loop polled `p.state` unsynchronised, so a
+  stop could take a time unrelated to `stopwaitsecs`. `GetState`,
+  `GetStartTime` and `GetStopTime` took no lock either. (`eb35f6b`)
+- **Logger data race → lost output.** The goroutine that closes a program's
+  loggers read the fields with no lock and closed whichever logger was installed
+  when its wait loop ended — possibly the one the *restarted* process had just
+  been given, after which that program's output silently stopped being written.
+  Log RPCs also dereferenced the loggers with no nil check, so
+  `readProcessStdoutLog` against a never-started program panicked. (`6bb4543`)
+- `POST /supervisor/reload` always answered `{"success":false}`, whatever
+  happened. (`fe17ce8`)
+- `supervisorctl reload` exited 0 and printed nothing when the server had
+  refused the reload: `XMLRPCClient.ReloadConfig` is the only method that walks
+  the XML by hand instead of using `xml.DecodeClientResponse`, and it never
+  looked for a fault element. (`384c81d`)
+- `/log` and `/confFile` read their page from `./webgui` relative to the working
+  directory even in a release build, so as a Windows service — working directory
+  `System32` — they returned a bodyless 404 and the browser showed a blank page
+  while the rest of the GUI worked. (`9845bc3`)
+
+## Web GUI
+
+Rewritten (`28f23f4`). jQuery, Popper, Bootstrap, bootstrap-table,
+bootstrap-dialog and axios are gone, along with the 3.4 MB of vendored assets
+that shipped inside every binary (`47807d9`) — the release binary drops from
+20.3 MB to 16.9 MB. Rows are built with `createElement`/`textContent`, so a
+program name is never concatenated into markup at all.
+
+Also removed: the config editor (`28d9c26`) and `login.html`, an unmodified
+Bootstrap sign-in example that nothing linked to and that could not have
+authenticated anything (`4c928a3`).
+
+## Housekeeping
+
+`Taskfile.yml` for local builds (`461707c`); the remaining Chinese comments and
+GUI strings translated to English (`a3f206f`).
 
 # Usage from a Docker container
 
@@ -259,6 +449,14 @@ FROM debian:latest
 COPY --from=ochinchina/supervisord:latest /usr/local/bin/supervisord /usr/local/bin/supervisord
 CMD ["/usr/local/bin/supervisord"]
 ```
+
+Note that `ochinchina/supervisord:latest` is upstream's image and carries none of
+the changes listed under [Differences from upstream](#differences-from-upstream).
+
+The `Dockerfile` and `Dockerfile.github` in this repo build **without**
+`-tags release`, so the image they produce serves the web GUI from `./webgui`
+relative to the working directory and returns 404 for it. Add the tag if you
+build your own image and want the GUI.
 
 # Integrate with Prometheus
 
