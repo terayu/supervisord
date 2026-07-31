@@ -176,7 +176,10 @@ func (p *Process) Start(wait bool) {
 			if time.Now().Unix()-p.startTime.Unix() < 2 {
 				time.Sleep(5 * time.Second)
 			}
-			if p.stopByUser {
+			p.lock.RLock()
+			stopByUser := p.stopByUser
+			p.lock.RUnlock()
+			if stopByUser {
 				log.WithFields(log.Fields{"program": p.GetName()}).Info("program stopped by user, don't start it again")
 				break
 			}
@@ -263,16 +266,22 @@ func (p *Process) GetPid() int {
 
 // GetState returns process state
 func (p *Process) GetState() State {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	return p.state
 }
 
 // GetStartTime returns process start time
 func (p *Process) GetStartTime() time.Time {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	return p.startTime
 }
 
 // GetStopTime returns process stop time
 func (p *Process) GetStopTime() time.Time {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	switch p.state {
 	case Starting:
 		fallthrough
@@ -1058,14 +1067,15 @@ func (p *Process) Stop(wait bool) {
 	p.lock.Lock()
 	p.stopByUser = true
 	isRunning := p.isRunning()
-	p.lock.Unlock()
 	if !isRunning {
+		p.lock.Unlock()
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("program is not running")
 		return
 	}
-  
+
 	log.WithFields(log.Fields{"program": p.GetName()}).Info("stopping the program")
 	p.changeStateTo(Stopping)
+	p.lock.Unlock()
 	sigs := strings.Fields(p.config.GetString("stopsignal", "TERM"))
 	waitsecs := time.Duration(p.config.GetInt("stopwaitsecs", 10)) * time.Second
 	killwaitsecs := time.Duration(p.config.GetInt("killwaitsecs", 2)) * time.Second
@@ -1089,7 +1099,7 @@ func (p *Process) Stop(wait bool) {
 			// wait at most "stopwaitsecs" seconds for one signal
 			for endTime.After(time.Now()) {
 				// if it already exits
-				if p.state != Starting && p.state != Running && p.state != Stopping {
+				if state := p.GetState(); state != Starting && state != Running && state != Stopping {
 					atomic.StoreInt32(&stopped, 1)
 					break
 				}
@@ -1102,7 +1112,7 @@ func (p *Process) Stop(wait bool) {
 			killEndTime := time.Now().Add(killwaitsecs)
 			for killEndTime.After(time.Now()) {
 				// if it exits
-				if p.state != Starting && p.state != Running && p.state != Stopping {
+				if state := p.GetState(); state != Starting && state != Running && state != Stopping {
 					atomic.StoreInt32(&stopped, 1)
 					break
 				}
