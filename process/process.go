@@ -131,7 +131,7 @@ func (p *Process) addToCron() {
 		log.WithFields(log.Fields{"program": p.GetName()}).Info("try to create cron program with cron expression:", s)
 		scheduler.AddFunc(s, func() {
 			log.WithFields(log.Fields{"program": p.GetName()}).Info("start cron program")
-			if !p.isRunning() {
+			if !p.isRunningWithLock() {
 				p.Start(false)
 			}
 		})
@@ -396,6 +396,7 @@ func (p *Process) getExitCodes() []int {
 }
 
 // check if the process is running or not
+// callers must hold p.lock (read or write); use isRunningWithLock otherwise
 func (p *Process) isRunning() bool {
 	if p.cmd != nil && p.cmd.Process != nil {
 		if runtime.GOOS == "windows" {
@@ -405,6 +406,13 @@ func (p *Process) isRunning() bool {
 		return p.cmd.Process.Signal(syscall.Signal(0)) == nil
 	}
 	return false
+}
+
+// isRunningWithLock is for callers that do not already hold p.lock.
+func (p *Process) isRunningWithLock() bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+	return p.isRunning()
 }
 
 // create Command object for the program
@@ -610,7 +618,7 @@ func (p *Process) run(finishCb func()) {
 			// otherwise the logger will not be closed before SIGKILL is sent
 			halfWaitsecs := time.Duration(p.config.GetInt("stopwaitsecs", 10)/2) * time.Second
 			for {
-				if !p.isRunning() {
+				if !p.isRunningWithLock() {
 					break
 				}
 				time.Sleep(halfWaitsecs)
@@ -653,7 +661,7 @@ func (p *Process) run(finishCb func()) {
 			case <-procExitC:
 				break LOOP
 			default:
-				if !p.isRunning() {
+				if !p.isRunningWithLock() {
 					break LOOP
 				}
 			}
