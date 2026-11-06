@@ -356,7 +356,7 @@ at `16cb640`. Everything below is this fork.
 
 ## Behaviour that changed — read this before upgrading
 
-These four can break a working setup. The rest of the list only fixes things.
+These five can break a working setup. The rest of the list only fixes things.
 
 | Change | What breaks |
 |---|---|
@@ -364,6 +364,7 @@ These four can break a working setup. The rest of the list only fixes things.
 | A config file that cannot be read is fatal at startup | Upstream started anyway and supervised nothing. This exits non-zero with the reason. A wrong `-c` path now fails loudly instead of looking like a hung service. |
 | State-changing REST calls are checked for cross-origin | A client posting `application/x-www-form-urlencoded` gets 415. Send `application/json`. Behind a reverse proxy, pass the original `Host` (`proxy_set_header Host $host;`) or the `Origin` check rejects the request. |
 | The config editor page is gone | `/confFile` and `/conf/{program}` now 404. It never saved anything — the Save button had no handler and no route wrote files — so nothing that worked stopped working. |
+| A backslash in a config value is an ordinary character | The ini reader no longer treats `\n`, `\t`, `\\`, `\;`, `\#`, `\=`, `\:` and `\x????` as escape sequences, and no longer drops the backslash from other sequences (`D:\log\app.log` used to become `D:log` + BEL + `pp.log`). Windows paths now work as written. A value that used `\\` to get one backslash now keeps both, and `\;` or `\#` keeps its backslash. A value ending in a single `\` still continues on the next line, so end a path with `/` or add something after it. |
 
 `/metrics` and `/log/<program>/` also require credentials now, which will break
 an unauthenticated Prometheus scrape.

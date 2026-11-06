@@ -18,8 +18,6 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/ochinchina/filechangemonitor v0.3.1 h1:Fyt8iE44kFwmI3ncNWAi21GZnmRBrAUSlMunpcDlMjQ=
 github.com/ochinchina/filechangemonitor v0.3.1/go.mod h1:OLRTJMpgb3yP1zBKA2g5GMYsKzJUoLq01lNOsReEzbQ=
-github.com/ochinchina/go-ini v1.0.1 h1:qrKGrgxJjY+4H8aV7B2HPohShzHGrymW+/X1Gx933zU=
-github.com/ochinchina/go-ini v1.0.1/go.mod h1:Tqs5+JmccLSNMX1KXbbyG/B3ro4J9uXVYC5U5VOeRE8=
 github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c h1:6xgMUqscagnZicBedm1h4T3q6IQHbrrZp7bker+toOI=
 github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c/go.mod h1:/gFmJ8Das0jFgYxzt/RkvAO62T/ZPcyTaZlOkEBu/jw=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

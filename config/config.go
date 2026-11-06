@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-envparse"
-	"github.com/ochinchina/go-ini"
+	"github.com/terayu/supervisord/ini"
 	log "github.com/sirupsen/logrus"
 )
 

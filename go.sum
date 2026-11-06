@@ -31,8 +31,6 @@ github.com/ochinchina/filechangemonitor v0.3.1 h1:Fyt8iE44kFwmI3ncNWAi21GZnmRBrA
 github.com/ochinchina/filechangemonitor v0.3.1/go.mod h1:OLRTJMpgb3yP1zBKA2g5GMYsKzJUoLq01lNOsReEzbQ=
 github.com/ochinchina/go-daemon v0.1.5 h1:XZoQ1NUXfeIGkU5rgbAwiNb1sr5btc2NbUqYUXmR5Zs=
 github.com/ochinchina/go-daemon v0.1.5/go.mod h1:oqEZ8HaYtoTxjkIpaizQ75VT5PWgpVeIennFIYSIkzQ=
-github.com/ochinchina/go-ini v1.0.1 h1:qrKGrgxJjY+4H8aV7B2HPohShzHGrymW+/X1Gx933zU=
-github.com/ochinchina/go-ini v1.0.1/go.mod h1:Tqs5+JmccLSNMX1KXbbyG/B3ro4J9uXVYC5U5VOeRE8=
 github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc h1:oyaVoTfmN7Xe06URvpaKK8GDZr0YJFKhmKi37rE0a3c=
 github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc/go.mod h1:SmX+KYO+b7mEApGBUNwjdJpRQwAdb0Rlzoh8G77K55I=
 github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c h1:6xgMUqscagnZicBedm1h4T3q6IQHbrrZp7bker+toOI=

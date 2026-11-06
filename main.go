@@ -12,7 +12,7 @@ import (
 	"unicode"
 
 	"github.com/jessevdk/go-flags"
-	"github.com/ochinchina/go-ini"
+	"github.com/terayu/supervisord/ini"
 	"github.com/terayu/supervisord/config"
 	"github.com/terayu/supervisord/logger"
 	log "github.com/sirupsen/logrus"

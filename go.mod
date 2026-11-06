@@ -10,9 +10,10 @@ require (
 	github.com/jessevdk/go-flags v1.6.1
 	github.com/kardianos/service v1.2.2
 	github.com/ochinchina/go-daemon v0.1.5
-	github.com/ochinchina/go-ini v1.0.1
 	github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc
 	github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c
+	github.com/prometheus/client_golang v1.22.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/terayu/supervisord/config v0.0.0-20250610055946-d5a5470d11af
 	github.com/terayu/supervisord/events v0.0.0-20250610055946-d5a5470d11af
 	github.com/terayu/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
@@ -22,8 +23,6 @@ require (
 	github.com/terayu/supervisord/types v0.0.0-20250610055946-d5a5470d11af
 	github.com/terayu/supervisord/util v0.0.0-20250610055946-d5a5470d11af
 	github.com/terayu/supervisord/xmlrpcclient v0.0.0-20250610055946-d5a5470d11af
-	github.com/prometheus/client_golang v1.22.0
-	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/protobuf v1.36.6 // indirect; CVE-2024-24786
 )
 
@@ -40,6 +39,7 @@ require (
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-charset v0.0.0-20190617161244-0dc95cdf6f31 // indirect
+	github.com/terayu/supervisord/ini v0.0.0-00010101000000-000000000000
 	golang.org/x/sys v0.33.0 // indirect
 )
 
@@ -54,3 +54,5 @@ replace (
 	github.com/terayu/supervisord/util => ./util
 	github.com/terayu/supervisord/xmlrpcclient => ./xmlrpcclient
 )
+
+replace github.com/terayu/supervisord/ini => ./ini

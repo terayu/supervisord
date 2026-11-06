@@ -289,3 +289,31 @@ func TestLoadEmptyFileIsNotAnError(t *testing.T) {
 		t.Error("expected no programs from an empty configuration file")
 	}
 }
+
+// A Windows path is written with plain backslashes and must arrive unchanged:
+// \l, \a, \t, \n and \x must not be read as escape sequences.
+func TestWindowsPathsKeepBackslashes(t *testing.T) {
+	config, err := parse([]byte(`[program:test]
+command = C:\app\run.exe --log D:\log\a.log
+directory = D:\log\app
+stdout_logfile = D:\log\app.log
+stderr_logfile = C:\temp\new\x.log
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := config.GetProgram("test")
+	if entry == nil {
+		t.Fatal("program test not found")
+	}
+	for key, want := range map[string]string{
+		"command":        `C:\app\run.exe --log D:\log\a.log`,
+		"directory":      `D:\log\app`,
+		"stdout_logfile": `D:\log\app.log`,
+		"stderr_logfile": `C:\temp\new\x.log`,
+	} {
+		if got := entry.GetStringExpression(key, ""); got != want {
+			t.Errorf("%s: got %q, want %q", key, got, want)
+		}
+	}
+}
