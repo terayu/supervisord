@@ -13,8 +13,8 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/ochinchina/go-ini"
-	"github.com/ochinchina/supervisord/config"
-	"github.com/ochinchina/supervisord/logger"
+	"github.com/terayu/supervisord/config"
+	"github.com/terayu/supervisord/logger"
 	log "github.com/sirupsen/logrus"
 )
 

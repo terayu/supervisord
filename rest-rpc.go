@@ -8,7 +8,7 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
-	"github.com/ochinchina/supervisord/types"
+	"github.com/terayu/supervisord/types"
 )
 
 // SupervisorRestful the restful interface to control the programs defined in configuration file

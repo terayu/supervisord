@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/ochinchina/supervisord/logger"
+	"github.com/terayu/supervisord/logger"
 	"net/http"
 
 	"github.com/gorilla/mux"

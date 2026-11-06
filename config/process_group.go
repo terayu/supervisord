@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/ochinchina/supervisord/util"
+	"github.com/terayu/supervisord/util"
 )
 
 // ProcessGroup manage the program and its group mapping

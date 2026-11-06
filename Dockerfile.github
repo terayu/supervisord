@@ -14,12 +14,12 @@ RUN mkdir -p $GOPATH/src/golang.org/x && \
     git clone https://github.com/golang/sys
 
 # Exit 0 to ignore meta tag complaints
-RUN go get -v -u github.com/ochinchina/supervisord; exit 0
+RUN go get -v -u github.com/terayu/supervisord; exit 0
 
 # -tags release embeds webgui/ into the binary. Without it the image serves the
 # web GUI from ./webgui relative to the working directory, which does not exist
 # in a scratch image, and every GUI route answers 404.
-RUN CGO_ENABLED=0 GOOS=linux go build -tags release -a -ldflags "-extldflags -static" -o /usr/local/bin/supervisord github.com/ochinchina/supervisord
+RUN CGO_ENABLED=0 GOOS=linux go build -tags release -a -ldflags "-extldflags -static" -o /usr/local/bin/supervisord github.com/terayu/supervisord
 
 FROM scratch
 

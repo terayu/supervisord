@@ -14,7 +14,7 @@ WORKDIR /src
 # for the external (cgo) linker that CGO_ENABLED=0 disables, and the build
 # failed with "-linkmode requires external (cgo) linking, but cgo is not
 # enabled".
-RUN CGO_ENABLED=0 go build -tags release -a -o /usr/local/bin/supervisord github.com/ochinchina/supervisord
+RUN CGO_ENABLED=0 go build -tags release -a -o /usr/local/bin/supervisord github.com/terayu/supervisord
 
 FROM scratch
 

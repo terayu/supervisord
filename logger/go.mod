@@ -1,10 +1,10 @@
-module github.com/ochinchina/supervisord/logger
+module github.com/terayu/supervisord/logger
 
 go 1.24
 
 require (
-	github.com/ochinchina/supervisord/events v0.0.0-20250610055946-d5a5470d11af
-	github.com/ochinchina/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
+	github.com/terayu/supervisord/events v0.0.0-20250610055946-d5a5470d11af
+	github.com/terayu/supervisord/faults v0.0.0-20250610055946-d5a5470d11af
 )
 
 require (
@@ -14,3 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 )
+
+replace github.com/terayu/supervisord/events => ../events
+
+replace github.com/terayu/supervisord/faults => ../faults
