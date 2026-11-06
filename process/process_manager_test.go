@@ -1,7 +1,7 @@
 package process
 
 import (
-	"supervisord/config"
+	"github.com/terayu/supervisord/config"
 	"testing"
 )
 
